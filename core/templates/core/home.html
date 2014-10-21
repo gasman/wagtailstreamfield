@@ -1,0 +1,17 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <script src="{{ STATIC_URL }}js/jquery-1.9.1.js"></script>
+        {{ media }}
+        {{ declarations }}
+        <script>
+            $(function() {
+                var pageConstructor = {{ constructor|safe }};
+                pageConstructor.init('page');
+            })
+        </script>
+    </head>
+    <body>
+        {{ page.render }}
+    </body>
+</html>

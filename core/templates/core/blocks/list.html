@@ -1,0 +1,8 @@
+{% if label %}<label>{{ label }}</label>{% endif %}
+<input type="hidden" name="{{ self.prefix }}-count" id="{{ self.prefix }}-count" value="{{ self.children|length }}">
+<ul id="{{ self.prefix }}-list">
+    {% for child in self.children %}
+        <li>{{ child.render }}</li>
+    {% endfor %}
+</ul>
+<input type="button" id="{{ self.prefix }}-add" value="Add another">
