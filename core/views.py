@@ -38,6 +38,6 @@ def home(request):
     return render(request, 'core/home.html', {
         'media': page_def.media,
         'declarations': page_def.html_declarations('blockdef-page'),
-        'constructor': page_def.js_constructor('blockdef-page'),
+        'initializer': page_def.js_initializer('blockdef-page'),
         'page': page,
     })

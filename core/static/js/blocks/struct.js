@@ -1,12 +1,10 @@
 (function($) {
-    window.StructBlock = function(childConstructorsWithNames) {
-        return {
-            'init': function(elementPrefix) {
-                for (var i = 0; i < childConstructorsWithNames.length; i++) {
-                    var childName = childConstructorsWithNames[i][0];
-                    var childConstructor = childConstructorsWithNames[i][1];
-                    childConstructor.init(elementPrefix + '-' + childName);
-                }
+    window.StructBlock = function(childInitializersWithNames) {
+        return function(elementPrefix) {
+            for (var i = 0; i < childInitializersWithNames.length; i++) {
+                var childName = childInitializersWithNames[i][0];
+                var childInitializer = childInitializersWithNames[i][1];
+                childInitializer(elementPrefix + '-' + childName);
             }
         };
     };

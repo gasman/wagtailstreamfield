@@ -4,12 +4,15 @@
         <script src="{{ STATIC_URL }}js/jquery-1.9.1.js"></script>
         {{ media }}
         {{ declarations }}
-        <script>
-            $(function() {
-                var pageConstructor = {{ constructor|safe }};
-                pageConstructor.init('page');
-            })
-        </script>
+
+        {% if initializer %}
+            <script>
+                $(function() {
+                    var pageInitializer = {{ initializer|safe }};
+                    pageInitializer('page');
+                })
+            </script>
+        {% endif %}
     </head>
     <body>
         {{ page.render }}

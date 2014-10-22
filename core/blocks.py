@@ -9,10 +9,10 @@ class Block(with_metaclass(MediaDefiningClass)):
     def html_declarations(self, definition_prefix):
         return ''
 
-    def js_constructor(self, definition_prefix):
+    def js_initializer(self, definition_prefix):
         """
-        Returns a Javascript expression that evaluates to an object with an 'init' method.
-        This init method will be called (passing the element prefix to it) whenever a block is created,
+        Returns a Javascript expression that evaluates to a function.
+        This will be called (passing the element prefix to it) whenever a block is created,
         to initialise any javascript behaviours required by the block.
 
         If no JS behaviour is required, this method can return None instead.
@@ -56,7 +56,7 @@ class Chooser(Block):
     class Media:
         js = ['js/blocks/chooser.js']
 
-    def js_constructor(self, definition_prefix):
+    def js_initializer(self, definition_prefix):
         return "Chooser('%s')" % definition_prefix
 
     class BoundBlock(BaseBoundBlock):
@@ -78,19 +78,19 @@ class StructBlock(Block):
             for (name, child_def) in self.child_defs
         ])
 
-    def js_constructor(self, definition_prefix):
-        child_constructors = []
+    def js_initializer(self, definition_prefix):
+        child_initializers = []
         for (name, child_def) in self.child_defs:
-            constructor_js = child_def.js_constructor("%s-%s" % (definition_prefix, name))
-            if constructor_js:
-                child_constructors.append((name, constructor_js))
+            initializer_js = child_def.js_initializer("%s-%s" % (definition_prefix, name))
+            if initializer_js:
+                child_initializers.append((name, initializer_js))
 
-        if child_constructors:  # don't bother to output a js constructor if children don't require one
-            constructor_js_list = [
-                "['%s', %s]" % (name, constructor_js)
-                for name, constructor_js in child_constructors
+        if child_initializers:  # don't bother to output a js initializer if children don't require one
+            initializer_js_list = [
+                "['%s', %s]" % (name, initializer_js)
+                for name, initializer_js in child_initializers
             ]
-            return "StructBlock([\n%s\n])" % ',\n'.join(constructor_js_list)
+            return "StructBlock([\n%s\n])" % ',\n'.join(initializer_js_list)
 
     @property
     def media(self):
@@ -127,10 +127,10 @@ class ListBlock(Block):
         child_declarations = self.child_def.html_declarations("%s-item" % definition_prefix)
         return mark_safe(template_declaration + child_declarations)
 
-    def js_constructor(self, definition_prefix):
-        child_constructor = self.child_def.js_constructor("%s-item" % definition_prefix)
-        if child_constructor:
-            return "ListBlock('%s', %s)" % (definition_prefix, child_constructor)
+    def js_initializer(self, definition_prefix):
+        child_initializer = self.child_def.js_initializer("%s-item" % definition_prefix)
+        if child_initializer:
+            return "ListBlock('%s', %s)" % (definition_prefix, child_initializer)
         else:
             return "ListBlock('%s')" % (definition_prefix)
 
@@ -185,14 +185,14 @@ class StreamBlock(Block):
 
         return mark_safe('\n'.join(child_def_declarations))
 
-    def js_constructor(self, definition_prefix):
+    def js_initializer(self, definition_prefix):
         child_js_defs = [
             """{{
                 'name': '{child_name}',
-                'initializer': {constructor}
+                'initializer': {initializer}
             }}""".format(
                 child_name=name,
-                constructor=child_def.js_constructor("%s-child-%s" % (definition_prefix, name)) or 'null'
+                initializer=child_def.js_initializer("%s-child-%s" % (definition_prefix, name)) or 'null'
             )
             for name, child_def in self.child_defs
         ]
