@@ -1,6 +1,7 @@
 from six import with_metaclass
 
 from django.utils.html import format_html, format_html_join
+from django.utils.safestring import mark_safe
 from django.template.loader import render_to_string
 from django.forms import MediaDefiningClass, Media
 
@@ -124,7 +125,7 @@ class ListBlock(Block):
             definition_prefix, self.template_child.render()
         )
         child_declarations = self.child_def.html_declarations("%s-item" % definition_prefix)
-        return format_html_join('\n', '{0}', [(template_declaration,), (child_declarations,)])
+        return mark_safe(template_declaration + child_declarations)
 
     def js_constructor(self, definition_prefix):
         child_constructor = self.child_def.js_constructor("%s-item" % definition_prefix)
@@ -148,6 +149,78 @@ class ListBlock(Block):
 
         def render(self):
             return render_to_string('core/blocks/list.html', {
+                'label': self.definition.label,
+                'self': self,
+            })
+
+
+class StreamBlock(Block):
+    def __init__(self, child_defs, **kwargs):
+        self.child_defs = child_defs
+        self.default = kwargs.get('default', [])
+        self.label = kwargs.get('label', '')
+
+        self.child_defs_by_name = {}
+        self.template_children = {}
+        for name, child_def in self.child_defs:
+            self.child_defs_by_name[name] = child_def
+            self.template_children[name] = child_def(prefix="__PREFIX__")
+
+    def html_declarations(self, definition_prefix):
+        child_def_declarations = [
+            format_html(
+                """
+                    {html_declarations}
+                    <script type="text/template" id="{definition_prefix}-template-{child_name}">
+                        {child_template}
+                    </script>
+                """,
+                html_declarations=child_def.html_declarations("%s-child-%s" % (definition_prefix, name)),
+                definition_prefix=definition_prefix,
+                child_name=name,
+                child_template=self.template_children[name].render()
+            )
+            for (name, child_def) in self.child_defs
+        ]
+
+        return mark_safe('\n'.join(child_def_declarations))
+
+    def js_constructor(self, definition_prefix):
+        child_js_defs = [
+            """{{
+                'name': '{child_name}',
+                'initializer': {constructor}
+            }}""".format(
+                child_name=name,
+                constructor=child_def.js_constructor("%s-child-%s" % (definition_prefix, name)) or 'null'
+            )
+            for name, child_def in self.child_defs
+        ]
+
+        return "StreamBlock([\n%s\n])" % ',\n'.join(child_js_defs)
+
+    @property
+    def media(self):
+        media = Media(js=['js/blocks/stream.js'])
+        for name, item in self.child_defs:
+            media += item.media
+        return media
+
+    class BoundBlock(BaseBoundBlock):
+        def __init__(self, definition, prefix, value):
+            super(StreamBlock.BoundBlock, self).__init__(definition, prefix, value)
+            self.child_records = []  # tuple of index, type, block object
+
+            index = 0
+            for item in value:
+                child_def = definition.child_defs_by_name.get(item['type'])
+                if child_def:
+                    child_block = child_def(item['value'], prefix="%s-%d-item" % (self.prefix, index))
+                    self.child_records.append((index, item['type'], child_block))
+                    index += 1
+
+        def render(self):
+            return render_to_string('core/blocks/stream.html', {
                 'label': self.definition.label,
                 'self': self,
             })
