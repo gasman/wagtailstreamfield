@@ -2,10 +2,12 @@
 <input type="hidden" name="{{ self.prefix }}-count" id="{{ self.prefix }}-count" value="{{ self.child_records|length }}">
 <ul id="{{ self.prefix }}-list">
     {% for index, block_type, child in self.child_records %}
+        {% include "core/blocks/stream_menu.html" %}
         <li>
             <input type="hidden" name="{{ self.prefix }}-{{ index }}-type" id="{{ self.prefix }}-{{ index }}-type" value="{{ block_type }}">
             {{ child.render }}
         </li>
     {% endfor %}
+    {% include "core/blocks/stream_menu.html" %}
 </ul>
 <!-- <input type="button" id="{{ self.prefix }}-add" value="Add another"> -->

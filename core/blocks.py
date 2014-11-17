@@ -136,7 +136,7 @@ class ListBlock(Block):
 
     @property
     def media(self):
-        return Media(js=['js/blocks/list.js']) + self.child_def.media
+        return Media(js=['js/blocks/macro.js', 'js/blocks/list.js']) + self.child_def.media
 
     class BoundBlock(BaseBoundBlock):
         def __init__(self, definition, prefix, value):
@@ -182,8 +182,15 @@ class StreamBlock(Block):
             )
             for (name, child_def) in self.child_defs
         ]
+        menu_html = render_to_string('core/blocks/stream_menu.html', {
+            'child_names': [name for (name, child_def) in self.child_defs],
+            'prefix': '__PREFIX__'
+        })
+        menu_declaration = format_html(
+            """<script type="text/template" id="{definition_prefix}-menutemplate">{menu_html}</script>""",
+            definition_prefix=definition_prefix, menu_html=menu_html)
 
-        return mark_safe('\n'.join(child_def_declarations))
+        return mark_safe('\n'.join(child_def_declarations) + menu_declaration)
 
     def js_initializer(self, definition_prefix):
         child_js_defs = [
@@ -223,4 +230,5 @@ class StreamBlock(Block):
             return render_to_string('core/blocks/stream.html', {
                 'label': self.definition.label,
                 'self': self,
+                'child_names': [name for (name, child_def) in self.definition.child_defs],
             })

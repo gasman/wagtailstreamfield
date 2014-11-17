@@ -4,7 +4,7 @@
     behaviour, and we only have to set up the dynamic list behaviour.
     */
     window.ListBlock = function(definitionPrefix, childInitializer) {
-        var template = $('#' + definitionPrefix + '-template').text();
+        var childMacro = Macro(definitionPrefix + '-template', childInitializer);
 
         return function(elementPrefix) {
             var countField = $('#' + elementPrefix + '-count');
@@ -22,13 +22,9 @@
             $('#' + elementPrefix + '-add').click(function() {
                 var newIndex = parseInt(countField.val(), 10);
                 countField.val(newIndex + 1);
-                var newElementPrefix = elementPrefix + '-' + newIndex;
-                var newElementHtml = template.replace(/__PREFIX__/g, newElementPrefix);
-                var li = $('<li></li>').html(newElementHtml);
+                var li = $('<li></li>');
                 list.append(li);
-                if (childInitializer) {
-                    childInitializer(newElementPrefix);
-                }
+                childMacro.paste(li, elementPrefix + '-' + newIndex);
             });
         };
     };

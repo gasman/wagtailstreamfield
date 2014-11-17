@@ -1,0 +1,5 @@
+<ul>
+    {% for name in child_names %}
+        <li style="display: inline;"><a href="javascript:void(0)" id="{{ prefix }}-add-{{ name }}">{{ name }}</a></li>
+    {% endfor %}
+</ul>
