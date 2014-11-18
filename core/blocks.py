@@ -25,14 +25,17 @@ class Block(with_metaclass(MediaDefiningClass)):
         except IndexError:
             value = self.default  # constructor must set this
         prefix = kwargs.get('prefix', '')
-        return self.BoundBlock(self, prefix, value)
+        return BoundBlock(self, prefix, value)
 
 
-class BaseBoundBlock(object):
+class BoundBlock(object):
     def __init__(self, definition, prefix, value):
         self.definition = definition
         self.prefix = prefix
         self.value = value
+
+    def render(self):
+        return self.definition.render(self.value, self.prefix)
 
 
 class TextInput(Block):
@@ -40,12 +43,11 @@ class TextInput(Block):
         self.label = kwargs['label']
         self.default = kwargs.get('default', '')
 
-    class BoundBlock(BaseBoundBlock):
-        def render(self):
-            return format_html(
-                """<label for="{0}">{1}</label> <input type="text" name="{2}" id="{3}" value="{4}">""",
-                self.prefix, self.definition.label, self.prefix, self.prefix, self.value
-            )
+    def render(self, value, prefix=''):
+        return format_html(
+            """<label for="{0}">{1}</label> <input type="text" name="{2}" id="{3}" value="{4}">""",
+            prefix, self.label, prefix, prefix, value
+        )
 
 
 class Chooser(Block):
@@ -59,12 +61,11 @@ class Chooser(Block):
     def js_initializer(self, definition_prefix):
         return "Chooser('%s')" % definition_prefix
 
-    class BoundBlock(BaseBoundBlock):
-        def render(self):
-            return format_html(
-                """<label>{0}</label> <input type="button" id="{1}-button" value="Choose a thing">""",
-                self.definition.label, self.prefix
-            )
+    def render(self, value, prefix=''):
+        return format_html(
+            """<label>{0}</label> <input type="button" id="{1}-button" value="Choose a thing">""",
+            self.label, prefix
+        )
 
 
 class StructBlock(Block):
@@ -99,17 +100,19 @@ class StructBlock(Block):
             media += item.media
         return media
 
-    class BoundBlock(BaseBoundBlock):
-        def __init__(self, definition, prefix, value):
-            super(StructBlock.BoundBlock, self).__init__(definition, prefix, value)
-            self.children = [
-                child_def(self.value.get(name, child_def.default), prefix="%s-%s" % (self.prefix, name))
-                for (name, child_def) in self.definition.child_defs
-            ]
+    def render(self, value, prefix=''):
+        child_renderings = [
+            child_def.render(
+                value.get(name, child_def.default), prefix="%s-%s" % (prefix, name)
+            )
+            for (name, child_def) in self.child_defs
+        ]
 
-        def render(self):
-            list_items = format_html_join('\n', "<li>{0}</li>", [(c.render(),) for c in self.children])
-            return format_html("<ul>{0}</ul>", list_items)
+        list_items = format_html_join('\n', "<li>{0}</li>", [
+            [child_rendering]
+            for child_rendering in child_renderings
+        ])
+        return format_html("<ul>{0}</ul>", list_items)
 
 
 class ListBlock(Block):
@@ -138,20 +141,15 @@ class ListBlock(Block):
     def media(self):
         return Media(js=['js/blocks/macro.js', 'js/blocks/list.js']) + self.child_def.media
 
-    class BoundBlock(BaseBoundBlock):
-        def __init__(self, definition, prefix, value):
-            super(ListBlock.BoundBlock, self).__init__(definition, prefix, value)
-
-            self.children = [
-                self.definition.child_def(child_val, prefix="%s-%d" % (self.prefix, i))
-                for (i, child_val) in enumerate(self.value)
-            ]
-
-        def render(self):
-            return render_to_string('core/blocks/list.html', {
-                'label': self.definition.label,
-                'self': self,
-            })
+    def render(self, value, prefix=''):
+        return render_to_string('core/blocks/list.html', {
+            'label': self.label,
+            'prefix': prefix,
+            'children': [
+                self.child_def(child_val, prefix="%s-%d" % (prefix, i))
+                for (i, child_val) in enumerate(value)
+            ],
+        })
 
 
 class StreamBlock(Block):
@@ -213,22 +211,20 @@ class StreamBlock(Block):
             media += item.media
         return media
 
-    class BoundBlock(BaseBoundBlock):
-        def __init__(self, definition, prefix, value):
-            super(StreamBlock.BoundBlock, self).__init__(definition, prefix, value)
-            self.child_records = []  # tuple of index, type, block object
+    def render(self, value, prefix=''):
+        child_records = []
+        index = 0
 
-            index = 0
-            for item in value:
-                child_def = definition.child_defs_by_name.get(item['type'])
-                if child_def:
-                    child_block = child_def(item['value'], prefix="%s-%d-item" % (self.prefix, index))
-                    self.child_records.append((index, item['type'], child_block))
-                    index += 1
+        for item in value:
+            child_def = self.child_defs_by_name.get(item['type'])
+            if child_def:
+                child = child_def(item['value'], prefix="%s-%d-item" % (prefix, index))
+                child_records.append((index, item['type'], child))
+                index += 1
 
-        def render(self):
-            return render_to_string('core/blocks/stream.html', {
-                'label': self.definition.label,
-                'self': self,
-                'child_names': [name for (name, child_def) in self.definition.child_defs],
-            })
+        return render_to_string('core/blocks/stream.html', {
+            'label': self.label,
+            'prefix': prefix,
+            'child_records': child_records,
+            'child_type_names': [name for (name, child_def) in self.child_defs],
+        })
