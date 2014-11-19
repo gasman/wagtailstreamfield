@@ -1,4 +1,4 @@
-# Django settings for sirtrevor project.
+# Django settings for wagtailstreamfield project.
 
 import os
 import sys
@@ -20,7 +20,7 @@ MANAGERS = ADMINS
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'sirtrevor',
+        'NAME': 'wagtailstreamfield',
         'USER': 'postgres',
         'PASSWORD': '',
         'HOST': '',  # Set to empty string for localhost.
@@ -115,10 +115,10 @@ MIDDLEWARE_CLASSES = (
     'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
-ROOT_URLCONF = 'sirtrevor.urls'
+ROOT_URLCONF = 'wagtailstreamfield.urls'
 
 # Python dotted path to the WSGI application used by Django's runserver.
-WSGI_APPLICATION = 'sirtrevor.wsgi.application'
+WSGI_APPLICATION = 'wagtailstreamfield.wsgi.application'
 
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
@@ -145,7 +145,7 @@ INSTALLED_APPS = (
     'core',
 )
 
-EMAIL_SUBJECT_PREFIX = '[sirtrevor] '
+EMAIL_SUBJECT_PREFIX = '[wagtailstreamfield] '
 
 INTERNAL_IPS = ('127.0.0.1', '10.0.2.2')
 

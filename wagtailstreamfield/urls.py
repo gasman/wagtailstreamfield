@@ -5,8 +5,8 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     # Examples:
-    # url(r'^$', 'sirtrevor.views.home', name='home'),
-    # url(r'^sirtrevor/', include('sirtrevor.foo.urls')),
+    # url(r'^$', 'wagtailstreamfield.views.home', name='home'),
+    # url(r'^wagtailstreamfield/', include('wagtailstreamfield.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
