@@ -4,8 +4,8 @@ from core.blocks import TextInput, Chooser, StructBlock#, ListBlock, StreamBlock
 
 def home(request):
     SpeakerBlock = StructBlock([
-        ('name', TextInput(label='Name')),
-        ('job_title', TextInput(label='Job title', default="just this guy, y'know?")),
+        ('name', TextInput(label='Full name')),
+        ('job_title', TextInput(default="just this guy, y'know?")),
         #('nicknames', ListBlock(TextInput(label='Nickname'), label='Nicknames')),
         ('image', Chooser(label='Image')),
     ])

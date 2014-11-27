@@ -231,7 +231,10 @@ class StructFactory(BlockFactory):
             for child_rendering in child_renderings
         ])
 
-        return format_html("<ul>{0}</ul>", list_items)
+        if self.label:
+            return format_html("<label>{0}</label> <ul>{1}</ul>", self.label, list_items)
+        else:
+            return format_html("<ul>{0}</ul>", list_items)
 
 class StructBlock(BlockOptions):
     def __init__(self, child_definitions, **kwargs):
