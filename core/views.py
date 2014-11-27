@@ -39,9 +39,6 @@ def home(request):
     #     ],
     # }, prefix='page')
 
-    page_def = SpeakerBlock
-    page_data = {'name': 'Tim Berners-Lee', 'job_title': 'Web developer'}
-
     page_factory = page_def.factory(page_def, definition_prefix='def')
     page = page_factory.bind(page_data, prefix='page')
 
