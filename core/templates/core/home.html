@@ -2,17 +2,18 @@
 <html>
     <head>
         <script src="{{ STATIC_URL }}js/jquery-1.9.1.js"></script>
-        {{ media }}
-        {{ declarations }}
+        {{ page.factory.media }}
+        {{ page.factory.html_declarations }}
 
-        {% if initializer %}
-            <script>
-                $(function() {
-                    var pageInitializer = {{ initializer|safe }};
-                    pageInitializer('page');
-                })
-            </script>
-        {% endif %}
+        {% with page.factory.js_declaration as js_declaration %}
+            {% if js_declaration %}
+                <script>
+                    $(function() {
+                        var pageMetaInitializer = ({{ js_declaration|safe }})({{ page.js_declaration_params|safe }})('page');
+                    })
+                </script>
+            {% endif %}
+        {% endwith %}
     </head>
     <body>
         {{ page.render }}

@@ -2,229 +2,356 @@ from six import with_metaclass
 
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
+from django.utils.text import capfirst
 from django.template.loader import render_to_string
 from django.forms import MediaDefiningClass, Media
 
-class Block(with_metaclass(MediaDefiningClass)):
-    def html_declarations(self, definition_prefix):
+# =========================================
+# Top-level superclasses and helper objects
+# =========================================
+
+class BlockOptions(object):
+    def __init__(self, **kwargs):
+        # standard options are 'label' and 'default'
+        self.label = kwargs.get('label')
+
+        try:
+            self.default = kwargs['default']
+        except KeyError:
+            # subclasses are expected to set a default at the class level, so that if default
+            # is not passed in the constructor (NB this is distinct from passing default=None)
+            # then we'll revert to the block type's own default instead.
+            pass
+
+class BlockFactory(with_metaclass(MediaDefiningClass)):
+    def __init__(self, block_options, name=None, definition_prefix=''):
+        self.block_options = block_options
+        self.name = name
+        self.definition_prefix = definition_prefix
+
+        self.default = self.block_options.default
+
+        # Try to get a field label from block_options, or failing that, generate one from name
+        self.label = getattr(block_options, 'label', None)
+        if self.label is None and self.name is not None:
+            self.label = capfirst(self.name.replace('_', ' '))
+
+    def html_declarations(self):
+        """
+        Return an HTML fragment to be rendered on the page once per block definition -
+        as opposed to once per occurrence of the block. For example, the block definition
+            ListBlock(label="Shopping list", TextInput(label="Product"))
+        needs to output a <script type="text/template"></script> block containing the HTML for
+        a 'product' text input, to that these can be dynamically added to the list. This
+        template block must only occur once in the page, even if there are multiple 'shopping list'
+        blocks on the page.
+
+        Any element IDs used in this HTML fragment must begin with definition_prefix.
+        (More precisely, they must either be definition_prefix itself, or begin with definition_prefix
+        followed by a '-' character)
+        """
         return ''
 
-    def js_initializer(self, definition_prefix):
+    def js_declaration(self):
         """
-        Returns a Javascript expression that evaluates to a function.
-        This will be called (passing the element prefix to it) whenever a block is created,
-        to initialise any javascript behaviours required by the block.
+        Returns a Javascript expression string, or None if this block does not require any
+        Javascript behaviour. This expression evaluates to a "meta-initializer function":
+        a function that takes a param identifying relevant characteristics of the block content,
+        and returns an initializer function (one that takes an ID prefix and applies JS behaviour
+        to the block instance with that prefix).
 
-        If no JS behaviour is required, this method can return None instead.
+        The parent block of this block (or the top-level page code) must ensure that this
+        expression is not called more than once.
         """
         return None
 
-    def __call__(self, *args, **kwargs):
-        try:
-            value = args[0]
-        except IndexError:
-            value = self.default  # constructor must set this
-        prefix = kwargs.get('prefix', '')
+    def js_declaration_params(self, value):
+        """
+        Return a Javascript parameter list string (a comma-separated list of JS expressions)
+        for the parameters that should be passed to the meta-initializer function for a block
+        whose content is 'value'.
+        """
+        return ''
+
+    def render(self, value, prefix=''):
+        """
+        Render the HTML for this block with 'value' as its content.
+        """
+        raise NotImplemented
+
+    def bind(self, value, prefix):
+        """
+        Return a BoundBlock which represents the association of this block definition with a value
+        and a prefix.
+        BoundBlock primarily exists as a convenience to allow rendering within templates:
+        bound_block.render() rather than blockdef.render(value, prefix) which can't be called from
+        within a template.
+        """
         return BoundBlock(self, prefix, value)
 
 
 class BoundBlock(object):
-    def __init__(self, definition, prefix, value):
-        self.definition = definition
+    def __init__(self, factory, prefix, value):
+        self.factory = factory
         self.prefix = prefix
         self.value = value
 
     def render(self):
-        return self.definition.render(self.value, self.prefix)
+        return self.factory.render(self.value, self.prefix)
+
+    def js_declaration_params(self):
+        return self.factory.js_declaration_params(self.value)
 
 
-class TextInput(Block):
-    def __init__(self, **kwargs):
-        self.label = kwargs['label']
-        self.default = kwargs.get('default', '')
+# ==========
+# Text input
+# ==========
 
+class TextInputFactory(BlockFactory):
     def render(self, value, prefix=''):
-        return format_html(
-            """<label for="{0}">{1}</label> <input type="text" name="{2}" id="{3}" value="{4}">""",
-            prefix, self.label, prefix, prefix, value
-        )
+        if self.label:
+            return format_html(
+                """<label for="{prefix}">{label}</label> <input type="text" name="{prefix}" id="{prefix}" value="{value}">""",
+                prefix=prefix, label=self.label, value=value
+            )
+        else:
+            return format_html(
+                """<input type="text" name="{prefix}" id="{prefix}" value="{value}">""",
+                prefix=prefix, label=self.label, value=value
+            )
+
+class TextInput(BlockOptions):
+    factory = TextInputFactory
+    default = ''
 
 
-class Chooser(Block):
-    def __init__(self, **kwargs):
-        self.label = kwargs['label']
-        self.default = kwargs.get('default', '')
+# =======
+# Chooser
+# =======
 
+class ChooserFactory(BlockFactory):
     class Media:
         js = ['js/blocks/chooser.js']
 
-    def js_initializer(self, definition_prefix):
-        return "Chooser('%s')" % definition_prefix
+    def js_declaration(self):
+        return "Chooser('%s')" % self.definition_prefix
 
     def render(self, value, prefix=''):
-        return format_html(
-            """<label>{0}</label> <input type="button" id="{1}-button" value="Choose a thing">""",
-            self.label, prefix
-        )
+        if self.label:
+            return format_html(
+                """<label>{label}</label> <input type="button" id="{prefix}-button" value="Choose a thing">""",
+                label=self.label, prefix=prefix
+            )
+        else:
+            return format_html(
+                """<input type="button" id="{prefix}-button" value="Choose a thing">""",
+                prefix=prefix
+            )
+
+class Chooser(BlockOptions):
+    factory = ChooserFactory
+    default = None
 
 
-class StructBlock(Block):
-    def __init__(self, child_defs, **kwargs):
-        self.child_defs = child_defs
-        self.default = kwargs.get('default', {})
+# ===========
+# StructBlock
+# ===========
 
-    def html_declarations(self, definition_prefix):
+class StructFactory(BlockFactory):
+    def __init__(self, *args, **kwargs):
+        super(StructFactory, self).__init__(*args, **kwargs)
+
+        self.child_factories = []
+        self.child_factories_by_name = {}
+        for (name, opts) in self.block_options.child_definitions:
+            prefix = "%s-%s" % (self.definition_prefix, name)
+            factory = opts.factory(opts, name=name, definition_prefix=prefix)
+            self.child_factories.append(factory)
+            self.child_factories_by_name[name] = factory
+
+        self.child_js_declarations_by_name = {}
+        for factory in self.child_factories:
+            js_declaration = factory.js_declaration()
+            if js_declaration is not None:
+                self.child_js_declarations_by_name[factory.name] = js_declaration
+
+    def html_declarations(self):
         return format_html_join('\n', '{0}', [
-            (child_def.html_declarations("%s-%s" % (definition_prefix, name)),)
-            for (name, child_def) in self.child_defs
+            (child_factory.html_declarations(),)
+            for child_factory in self.child_factories
         ])
 
-    def js_initializer(self, definition_prefix):
-        child_initializers = []
-        for (name, child_def) in self.child_defs:
-            initializer_js = child_def.js_initializer("%s-%s" % (definition_prefix, name))
-            if initializer_js:
-                child_initializers.append((name, initializer_js))
+    def js_declaration(self):
+        # skip JS setup entirely if no children have js_declarations
+        if not self.child_js_declarations_by_name:
+            return None
 
-        if child_initializers:  # don't bother to output a js initializer if children don't require one
-            initializer_js_list = [
-                "['%s', %s]" % (name, initializer_js)
-                for name, initializer_js in child_initializers
-            ]
-            return "StructBlock([\n%s\n])" % ',\n'.join(initializer_js_list)
+        initializer_js_list = [
+            "'%s': (%s)" % (name, js_declaration)
+            for (name, js_declaration) in self.child_js_declarations_by_name.items()
+        ]
+        return "StructBlock({\n%s\n})" % ',\n'.join(initializer_js_list)
+
+    def js_declaration_params(self, value):
+        # Return value should be a mapping:
+        # {
+        #    'firstChild': [js_declaration_params_for_first_child],
+        #    'secondChild': [js_declaration_params_for_second_child]
+        # }
+        # - for each child that provides a js_declaration.
+
+        child_dict_entries = []
+
+        for child_name in self.child_js_declarations_by_name.keys():
+            factory = self.child_factories_by_name[child_name]
+            child_value = value.get(child_name, factory.default)
+            child_dict_entries.append("'{child_name}': [{child_params}]".format(
+                child_name=child_name, child_params=factory.js_declaration_params(child_value)
+            ))
+
+        return "{%s}" % ',\n'.join(child_dict_entries)
 
     @property
     def media(self):
         media = Media(js=['js/blocks/struct.js'])
-        for name, item in self.child_defs:
+        for item in self.child_factories:
             media += item.media
         return media
 
     def render(self, value, prefix=''):
         child_renderings = [
-            child_def.render(
-                value.get(name, child_def.default), prefix="%s-%s" % (prefix, name)
+            factory.render(
+                value.get(factory.name, factory.default), prefix="%s-%s" % (prefix, factory.name)
             )
-            for (name, child_def) in self.child_defs
+            for factory in self.child_factories
         ]
 
         list_items = format_html_join('\n', "<li>{0}</li>", [
             [child_rendering]
             for child_rendering in child_renderings
         ])
+
         return format_html("<ul>{0}</ul>", list_items)
 
+class StructBlock(BlockOptions):
+    def __init__(self, child_definitions, **kwargs):
+        super(StructBlock, self).__init__(**kwargs)
+        self.child_definitions = child_definitions
 
-class ListBlock(Block):
-    def __init__(self, child_def, **kwargs):
-        self.child_def = child_def
-        self.default = kwargs.get('default', [])
-        self.label = kwargs.get('label', '')
-        self.template_child = self.child_def(prefix="__PREFIX__")
-
-    def html_declarations(self, definition_prefix):
-        template_declaration = format_html(
-            '<script type="text/template" id="{0}-template">{1}</script>',
-            definition_prefix, self.template_child.render()
-        )
-        child_declarations = self.child_def.html_declarations("%s-item" % definition_prefix)
-        return mark_safe(template_declaration + child_declarations)
-
-    def js_initializer(self, definition_prefix):
-        child_initializer = self.child_def.js_initializer("%s-item" % definition_prefix)
-        if child_initializer:
-            return "ListBlock('%s', %s)" % (definition_prefix, child_initializer)
-        else:
-            return "ListBlock('%s')" % (definition_prefix)
-
-    @property
-    def media(self):
-        return Media(js=['js/blocks/macro.js', 'js/blocks/list.js']) + self.child_def.media
-
-    def render(self, value, prefix=''):
-        return render_to_string('core/blocks/list.html', {
-            'label': self.label,
-            'prefix': prefix,
-            'children': [
-                self.child_def(child_val, prefix="%s-%d" % (prefix, i))
-                for (i, child_val) in enumerate(value)
-            ],
-        })
+    factory = StructFactory
+    default = {}
 
 
-class StreamBlock(Block):
-    def __init__(self, child_defs, **kwargs):
-        self.child_defs = child_defs
-        self.default = kwargs.get('default', [])
-        self.label = kwargs.get('label', '')
+# class ListBlock(Block):
+#     def __init__(self, child_def, **kwargs):
+#         self.child_def = child_def
+#         self.default = kwargs.get('default', [])
+#         self.label = kwargs.get('label', '')
+#         self.template_child = self.child_def(prefix="__PREFIX__")
 
-        self.child_defs_by_name = {}
-        self.template_children = {}
-        for name, child_def in self.child_defs:
-            self.child_defs_by_name[name] = child_def
-            self.template_children[name] = child_def(prefix="__PREFIX__")
+#     def html_declarations(self, definition_prefix):
+#         template_declaration = format_html(
+#             '<script type="text/template" id="{0}-template">{1}</script>',
+#             definition_prefix, self.template_child.render()
+#         )
+#         child_declarations = self.child_def.html_declarations("%s-item" % definition_prefix)
+#         return mark_safe(template_declaration + child_declarations)
 
-    def html_declarations(self, definition_prefix):
-        child_def_declarations = [
-            format_html(
-                """
-                    {html_declarations}
-                    <script type="text/template" id="{definition_prefix}-template-{child_name}">
-                        {child_template}
-                    </script>
-                """,
-                html_declarations=child_def.html_declarations("%s-child-%s" % (definition_prefix, name)),
-                definition_prefix=definition_prefix,
-                child_name=name,
-                child_template=self.template_children[name].render()
-            )
-            for (name, child_def) in self.child_defs
-        ]
-        menu_html = render_to_string('core/blocks/stream_menu.html', {
-            'child_names': [name for (name, child_def) in self.child_defs],
-            'prefix': '__PREFIX__'
-        })
-        menu_declaration = format_html(
-            """<script type="text/template" id="{definition_prefix}-menutemplate">{menu_html}</script>""",
-            definition_prefix=definition_prefix, menu_html=menu_html)
+#     def js_initializer(self, definition_prefix):
+#         child_initializer = self.child_def.js_initializer("%s-item" % definition_prefix)
+#         if child_initializer:
+#             return "ListBlock('%s', %s)" % (definition_prefix, child_initializer)
+#         else:
+#             return "ListBlock('%s')" % (definition_prefix)
 
-        return mark_safe('\n'.join(child_def_declarations) + menu_declaration)
+#     @property
+#     def media(self):
+#         return Media(js=['js/blocks/macro.js', 'js/blocks/list.js']) + self.child_def.media
 
-    def js_initializer(self, definition_prefix):
-        child_js_defs = [
-            """{{
-                'name': '{child_name}',
-                'initializer': {initializer}
-            }}""".format(
-                child_name=name,
-                initializer=child_def.js_initializer("%s-child-%s" % (definition_prefix, name)) or 'null'
-            )
-            for name, child_def in self.child_defs
-        ]
+#     def render(self, value, prefix=''):
+#         return render_to_string('core/blocks/list.html', {
+#             'label': self.label,
+#             'prefix': prefix,
+#             'children': [
+#                 self.child_def(child_val, prefix="%s-%d" % (prefix, i))
+#                 for (i, child_val) in enumerate(value)
+#             ],
+#         })
 
-        return "StreamBlock([\n%s\n])" % ',\n'.join(child_js_defs)
 
-    @property
-    def media(self):
-        media = Media(js=['js/blocks/stream.js'])
-        for name, item in self.child_defs:
-            media += item.media
-        return media
+# class StreamBlock(Block):
+#     def __init__(self, child_defs, **kwargs):
+#         self.child_defs = child_defs
+#         self.default = kwargs.get('default', [])
+#         self.label = kwargs.get('label', '')
 
-    def render(self, value, prefix=''):
-        child_records = []
-        index = 0
+#         self.child_defs_by_name = {}
+#         self.template_children = {}
+#         for name, child_def in self.child_defs:
+#             self.child_defs_by_name[name] = child_def
+#             self.template_children[name] = child_def(prefix="__PREFIX__")
 
-        for item in value:
-            child_def = self.child_defs_by_name.get(item['type'])
-            if child_def:
-                child = child_def(item['value'], prefix="%s-%d-item" % (prefix, index))
-                child_records.append((index, item['type'], child))
-                index += 1
+#     def html_declarations(self, definition_prefix):
+#         child_def_declarations = [
+#             format_html(
+#                 """
+#                     {html_declarations}
+#                     <script type="text/template" id="{definition_prefix}-template-{child_name}">
+#                         {child_template}
+#                     </script>
+#                 """,
+#                 html_declarations=child_def.html_declarations("%s-child-%s" % (definition_prefix, name)),
+#                 definition_prefix=definition_prefix,
+#                 child_name=name,
+#                 child_template=self.template_children[name].render()
+#             )
+#             for (name, child_def) in self.child_defs
+#         ]
+#         menu_html = render_to_string('core/blocks/stream_menu.html', {
+#             'child_names': [name for (name, child_def) in self.child_defs],
+#             'prefix': '__PREFIX__'
+#         })
+#         menu_declaration = format_html(
+#             """<script type="text/template" id="{definition_prefix}-menutemplate">{menu_html}</script>""",
+#             definition_prefix=definition_prefix, menu_html=menu_html)
 
-        return render_to_string('core/blocks/stream.html', {
-            'label': self.label,
-            'prefix': prefix,
-            'child_records': child_records,
-            'child_type_names': [name for (name, child_def) in self.child_defs],
-        })
+#         return mark_safe('\n'.join(child_def_declarations) + menu_declaration)
+
+#     def js_initializer(self, definition_prefix):
+#         child_js_defs = [
+#             """{{
+#                 'name': '{child_name}',
+#                 'initializer': {initializer}
+#             }}""".format(
+#                 child_name=name,
+#                 initializer=child_def.js_initializer("%s-child-%s" % (definition_prefix, name)) or 'null'
+#             )
+#             for name, child_def in self.child_defs
+#         ]
+
+#         return "StreamBlock([\n%s\n])" % ',\n'.join(child_js_defs)
+
+#     @property
+#     def media(self):
+#         media = Media(js=['js/blocks/stream.js'])
+#         for name, item in self.child_defs:
+#             media += item.media
+#         return media
+
+#     def render(self, value, prefix=''):
+#         child_records = []
+#         index = 0
+
+#         for item in value:
+#             child_def = self.child_defs_by_name.get(item['type'])
+#             if child_def:
+#                 child = child_def(item['value'], prefix="%s-%d-item" % (prefix, index))
+#                 child_records.append((index, item['type'], child))
+#                 index += 1
+
+#         return render_to_string('core/blocks/stream.html', {
+#             'label': self.label,
+#             'prefix': prefix,
+#             'child_records': child_records,
+#             'child_type_names': [name for (name, child_def) in self.child_defs],
+#         })

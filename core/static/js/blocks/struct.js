@@ -1,11 +1,16 @@
-(function($) {
-    window.StructBlock = function(childInitializersWithNames) {
-        return function(elementPrefix) {
-            for (var i = 0; i < childInitializersWithNames.length; i++) {
-                var childName = childInitializersWithNames[i][0];
-                var childInitializer = childInitializersWithNames[i][1];
-                childInitializer(elementPrefix + '-' + childName);
+window.StructBlock = function(childMetaInitializersByName) {
+    return function(childParams) {
+        var childInitialisers = {};
+        for (var childName in childParams) {
+            var childParam = childParams[childName];
+            var childMetaInitializer = childMetaInitializersByName[childName];
+            childInitialisers[childName] = childMetaInitializer.apply(null, childParam);
+        }
+
+        return function(prefix) {
+            for (var childName in childInitialisers) {
+                childInitialisers[childName](prefix + '-' + childName);
             }
         };
-    };
-})(jQuery);
+    }
+};
