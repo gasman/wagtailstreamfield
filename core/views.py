@@ -12,8 +12,7 @@ def home(request):
 
     page_def = StructBlock([
         ('title', TextInput(label='Title')),
-        ('speaker', SpeakerBlock),
-#        ('speakers', ListBlock(SpeakerBlock, label='Speakers')),
+        ('speakers', ListBlock(SpeakerBlock, label='Speakers')),
 #        ('content', StreamBlock([
 #            ('heading', TextInput(label='Heading')),
 #            ('image', Chooser(label='Image'))
@@ -22,7 +21,10 @@ def home(request):
 
     page_data = {
         'title': 'My lovely event',
-        'speaker': {'name': 'Tim Berners-Lee', 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
+         'speakers': [
+             {'name': 'Tim Berners-Lee', 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
+             {'name': 'Bono', 'job_title': 'Singer'},
+         ],
     }
 
     # page = page_def({

@@ -1,16 +1,10 @@
-window.StructBlock = function(childMetaInitializersByName) {
-    return function(childParams) {
-        var childInitialisers = {};
+window.StructBlock = function(childInitializersByName) {
+    return function(childParams, prefix) {
         for (var childName in childParams) {
+            var childInitializer = childInitializersByName[childName];
             var childParam = childParams[childName];
-            var childMetaInitializer = childMetaInitializersByName[childName];
-            childInitialisers[childName] = childMetaInitializer.apply(null, childParam);
+            var childPrefix = prefix + '-' + childName;
+            childInitializer(childParam, childPrefix);
         }
-
-        return function(prefix) {
-            for (var childName in childInitialisers) {
-                childInitialisers[childName](prefix + '-' + childName);
-            }
-        };
-    }
+    };
 };

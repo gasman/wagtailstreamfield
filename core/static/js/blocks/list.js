@@ -1,20 +1,27 @@
 (function($) {
-    /* ListBlock may be constructed with or without a childInitializer.
-    If it's constructed without one, this means that the child block doesn't have any JS
-    behaviour, and we only have to set up the dynamic list behaviour.
-    */
-    window.ListBlock = function(definitionPrefix, childInitializer) {
-        var childMacro = Macro(definitionPrefix + '-template', childInitializer);
+    window.ListBlock = function(opts) {
+        /* contents of 'opts':
+            definitionPrefix (required)
+            childInitializer (optional) - JS initializer function for each child
+            templateChildParam (optional) - first param to be passed to childInitializer when adding a new child
+        */
+        var childMacro;
+        if (opts.childInitializer) {
+            childMacro = Macro(opts.definitionPrefix + '-template', function(prefix) {
+                opts.childInitializer(opts.templateChildParam, prefix);
+            });
+        } else {
+            childMacro = Macro(opts.definitionPrefix + '-template');
+        }
 
-        return function(elementPrefix) {
+        return function(childParams, elementPrefix) {
             var countField = $('#' + elementPrefix + '-count');
             var list = $('#' + elementPrefix + '-list');
 
-            if (childInitializer) {
-                /* initialise children */
-                var count = parseInt(countField.val(), 10);
-                for (var i = 0; i < count; i++) {
-                    childInitializer(elementPrefix + '-' + i);
+            /* initialise children */
+            if (opts.childInitializer) {
+                for (var i = 0; i < childParams.length; i++) {
+                    opts.childInitializer(childParams[i], elementPrefix + '-' + i);
                 }
             }
 

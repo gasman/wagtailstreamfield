@@ -8,8 +8,24 @@ from django.utils.text import capfirst
 from django.template.loader import render_to_string
 from django.forms import MediaDefiningClass, Media
 
+# helpers for Javascript expression formatting
+
 def indent(string, depth=1):
+    """indent all non-empty lines of string by 'depth' 4-character tabs"""
     return re.sub(r'(^|\n)([^\n]+)', '\g<1>' + ('    ' * depth) + '\g<2>', string)
+
+def js_dict(d):
+    """
+    Return a Javascript expression string for the dict 'd'.
+    Keys are assumed to be strings consisting only of JS-safe characters, and will be quoted but not escaped;
+    values are assumed to be valid Javascript expressions and will be neither escaped nor quoted (but will be
+    wrapped in parentheses, in case some awkward git decides to use the comma operator...)
+    """
+    dict_items = [
+        indent("'%s': (%s)" % (k, v))
+        for (k, v) in d.items()
+    ]
+    return "{\n%s\n}" % ',\n'.join(dict_items)
 
 # =========================================
 # Top-level superclasses and helper objects
@@ -60,23 +76,31 @@ class BlockFactory(with_metaclass(MediaDefiningClass)):
     def js_declaration(self):
         """
         Returns a Javascript expression string, or None if this block does not require any
-        Javascript behaviour. This expression evaluates to a "meta-initializer function":
-        a function that takes a param identifying relevant characteristics of the block content,
-        and returns an initializer function (one that takes an ID prefix and applies JS behaviour
-        to the block instance with that prefix).
+        Javascript behaviour. This expression evaluates to an initializer function, a function that
+        takes two arguments:
+        1) the value returned by js_declaration_param, identifying relevant
+        characteristics of the block content,
+        2) the ID prefix
+        - and applies JS behaviour to the block instance with that value and prefix.
 
         The parent block of this block (or the top-level page code) must ensure that this
-        expression is not called more than once.
+        expression is not evaluated more than once. (The resulting initializer function can and will be
+        called as many times as there are instances of this block, though.)
         """
         return None
 
-    def js_declaration_params(self, value):
+    def js_declaration_param(self, value):
         """
-        Return a Javascript parameter list string (a comma-separated list of JS expressions)
+        Return a Javascript expression that evaluates to a value to be passed as the 
         for the parameters that should be passed to the meta-initializer function for a block
         whose content is 'value'.
+
+        The parent block of this block (or the top-level page code) should avoid evaluating this
+        expression more times than necessary. (Roughly speaking, this means once per block instance
+        for values that originate from page content, and once per block definition for values that
+        are defined in the block definition, e.g. default values.)
         """
-        return ''
+        return 'null'
 
     def render(self, value, prefix=''):
         """
@@ -104,8 +128,8 @@ class BoundBlock(object):
     def render(self):
         return self.factory.render(self.value, self.prefix)
 
-    def js_declaration_params(self):
-        return self.factory.js_declaration_params(self.value)
+    def js_declaration_param(self):
+        return self.factory.js_declaration_param(self.value)
 
 
 # ==========
@@ -191,32 +215,24 @@ class StructFactory(BlockFactory):
         if not self.child_js_declarations_by_name:
             return None
 
-        initializer_js_list = [
-            indent("'{name}': ({js_declaration})".format(
-                name=name, js_declaration=js_declaration
-            ))
-            for (name, js_declaration) in self.child_js_declarations_by_name.items()
-        ]
-        return "StructBlock({\n%s\n})" % ',\n'.join(initializer_js_list)
+        return "StructBlock(%s)" % js_dict(self.child_js_declarations_by_name)
 
-    def js_declaration_params(self, value):
+    def js_declaration_param(self, value):
         # Return value should be a mapping:
         # {
-        #    'firstChild': [js_declaration_params_for_first_child],
-        #    'secondChild': [js_declaration_params_for_second_child]
+        #    'firstChild': js_declaration_param_for_first_child,
+        #    'secondChild': js_declaration_param_for_second_child
         # }
         # - for each child that provides a js_declaration.
 
-        child_dict_entries = []
+        child_params = {}
 
         for child_name in self.child_js_declarations_by_name.keys():
             factory = self.child_factories_by_name[child_name]
             child_value = value.get(child_name, factory.default)
-            child_dict_entries.append(indent("'{child_name}': [{child_params}]".format(
-                child_name=child_name, child_params=factory.js_declaration_params(child_value)
-            )))
+            child_params[child_name] = factory.js_declaration_param(child_value)
 
-        return "{\n%s\n}" % ',\n'.join(child_dict_entries)
+        return js_dict(child_params)
 
     @property
     def media(self):
@@ -264,6 +280,7 @@ class ListFactory(BlockFactory):
         self.child_factory = child_block_options.factory(child_block_options,
             definition_prefix=self.definition_prefix + '-child')
         self.template_child = self.child_factory.bind(self.child_factory.default, '__PREFIX__')
+        self.child_js_declaration = self.child_factory.js_declaration()
 
     @property
     def media(self):
@@ -278,11 +295,24 @@ class ListFactory(BlockFactory):
         return mark_safe(template_declaration + child_declarations)
 
     def js_declaration(self):
-        child_declaration = self.child_factory.js_declaration()
-        if child_declaration:
-            return "ListBlock('%s', %s)" % (self.definition_prefix, child_initializer)
+        opts = {'definitionPrefix': "'%s'" % self.definition_prefix}
+
+        if self.child_js_declaration:
+            opts['childInitializer'] = self.child_js_declaration
+            opts['templateChildParam'] = self.template_child.js_declaration_param()
+
+        return "ListBlock(%s)" % js_dict(opts)
+
+    def js_declaration_param(self, value):
+        if self.child_js_declaration:
+            # Return value is an array of js_declaration_params, one for each child block in the list
+            child_params = [
+                indent(self.child_factory.js_declaration_param(child_value))
+                for child_value in value
+            ]
+            return '[\n%s\n]' % ',\n'.join(child_params)
         else:
-            return "ListBlock('%s')" % (self.definition_prefix)
+            return '[]'
 
     def render(self, value, prefix=''):
         return render_to_string('core/blocks/list.html', {
