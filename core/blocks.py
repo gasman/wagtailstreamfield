@@ -1,3 +1,5 @@
+import re
+
 from six import with_metaclass
 
 from django.utils.html import format_html, format_html_join
@@ -5,6 +7,9 @@ from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.template.loader import render_to_string
 from django.forms import MediaDefiningClass, Media
+
+def indent(string, depth=1):
+    return re.sub(r'(^|\n)([^\n]+)', '\g<1>' + ('    ' * depth) + '\g<2>', string)
 
 # =========================================
 # Top-level superclasses and helper objects
@@ -187,7 +192,9 @@ class StructFactory(BlockFactory):
             return None
 
         initializer_js_list = [
-            "'%s': (%s)" % (name, js_declaration)
+            indent("'{name}': ({js_declaration})".format(
+                name=name, js_declaration=js_declaration
+            ))
             for (name, js_declaration) in self.child_js_declarations_by_name.items()
         ]
         return "StructBlock({\n%s\n})" % ',\n'.join(initializer_js_list)
@@ -205,11 +212,11 @@ class StructFactory(BlockFactory):
         for child_name in self.child_js_declarations_by_name.keys():
             factory = self.child_factories_by_name[child_name]
             child_value = value.get(child_name, factory.default)
-            child_dict_entries.append("'{child_name}': [{child_params}]".format(
+            child_dict_entries.append(indent("'{child_name}': [{child_params}]".format(
                 child_name=child_name, child_params=factory.js_declaration_params(child_value)
-            ))
+            )))
 
-        return "{%s}" % ',\n'.join(child_dict_entries)
+        return "{\n%s\n}" % ',\n'.join(child_dict_entries)
 
     @property
     def media(self):
@@ -245,41 +252,55 @@ class StructBlock(BlockOptions):
     default = {}
 
 
-# class ListBlock(Block):
-#     def __init__(self, child_def, **kwargs):
-#         self.child_def = child_def
-#         self.default = kwargs.get('default', [])
-#         self.label = kwargs.get('label', '')
-#         self.template_child = self.child_def(prefix="__PREFIX__")
+# =========
+# ListBlock
+# =========
 
-#     def html_declarations(self, definition_prefix):
-#         template_declaration = format_html(
-#             '<script type="text/template" id="{0}-template">{1}</script>',
-#             definition_prefix, self.template_child.render()
-#         )
-#         child_declarations = self.child_def.html_declarations("%s-item" % definition_prefix)
-#         return mark_safe(template_declaration + child_declarations)
+class ListFactory(BlockFactory):
+    def __init__(self, *args, **kwargs):
+        super(ListFactory, self).__init__(*args, **kwargs)
 
-#     def js_initializer(self, definition_prefix):
-#         child_initializer = self.child_def.js_initializer("%s-item" % definition_prefix)
-#         if child_initializer:
-#             return "ListBlock('%s', %s)" % (definition_prefix, child_initializer)
-#         else:
-#             return "ListBlock('%s')" % (definition_prefix)
+        child_block_options = self.block_options.child_block_options
+        self.child_factory = child_block_options.factory(child_block_options,
+            definition_prefix=self.definition_prefix + '-child')
+        self.template_child = self.child_factory.bind(self.child_factory.default, '__PREFIX__')
 
-#     @property
-#     def media(self):
-#         return Media(js=['js/blocks/macro.js', 'js/blocks/list.js']) + self.child_def.media
+    @property
+    def media(self):
+        return Media(js=['js/blocks/macro.js', 'js/blocks/list.js']) + self.child_factory.media
 
-#     def render(self, value, prefix=''):
-#         return render_to_string('core/blocks/list.html', {
-#             'label': self.label,
-#             'prefix': prefix,
-#             'children': [
-#                 self.child_def(child_val, prefix="%s-%d" % (prefix, i))
-#                 for (i, child_val) in enumerate(value)
-#             ],
-#         })
+    def html_declarations(self):
+        template_declaration = format_html(
+            '<script type="text/template" id="{0}-template">{1}</script>',
+            self.definition_prefix, self.template_child.render()
+        )
+        child_declarations = self.child_factory.html_declarations()
+        return mark_safe(template_declaration + child_declarations)
+
+    def js_declaration(self):
+        child_declaration = self.child_factory.js_declaration()
+        if child_declaration:
+            return "ListBlock('%s', %s)" % (self.definition_prefix, child_initializer)
+        else:
+            return "ListBlock('%s')" % (self.definition_prefix)
+
+    def render(self, value, prefix=''):
+        return render_to_string('core/blocks/list.html', {
+            'label': self.label,
+            'prefix': prefix,
+            'children': [
+                self.child_factory.bind(child_val, prefix="%s-%d" % (prefix, i))
+                for (i, child_val) in enumerate(value)
+            ],
+        })
+
+class ListBlock(BlockOptions):
+    def __init__(self, child_block_options, **kwargs):
+        super(ListBlock, self).__init__(**kwargs)
+        self.child_block_options = child_block_options
+
+    factory = ListFactory
+    default = []
 
 
 # class StreamBlock(Block):

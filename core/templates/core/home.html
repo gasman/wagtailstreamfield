@@ -9,7 +9,9 @@
             {% if js_declaration %}
                 <script>
                     $(function() {
-                        var pageMetaInitializer = ({{ js_declaration|safe }})({{ page.js_declaration_params|safe }})('page');
+                        var pageMetaInitializer = {{ js_declaration|safe }};
+                        var initPage = pageMetaInitializer({{ page.js_declaration_params|safe }});
+                        initPage('page');
                     })
                 </script>
             {% endif %}

@@ -1,12 +1,12 @@
 from django.shortcuts import render
 
-from core.blocks import TextInput, Chooser, StructBlock#, ListBlock, StreamBlock
+from core.blocks import TextInput, Chooser, StructBlock, ListBlock #, StreamBlock
 
 def home(request):
     SpeakerBlock = StructBlock([
         ('name', TextInput(label='Full name')),
         ('job_title', TextInput(default="just this guy, y'know?")),
-        #('nicknames', ListBlock(TextInput(label='Nickname'), label='Nicknames')),
+        ('nicknames', ListBlock(TextInput(label='Nickname'))),
         ('image', Chooser(label='Image')),
     ])
 
