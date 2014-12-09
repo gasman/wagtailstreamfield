@@ -7,28 +7,43 @@
         */
         var listMemberTemplate = $('#' + opts.definitionPrefix + '-childtemplate').text();
 
+        function initListMember(childParam, listMemberPrefix) {
+            /* run childInitializer if one has been supplied */
+            if (opts.childInitializer) {
+                /* the child block's own elements have the prefix '{list member prefix}-value' */
+                opts.childInitializer(childParam, listMemberPrefix + '-value');
+            }
+
+            /* initialise delete button */
+            $('#' + listMemberPrefix + '-delete').click(function() {
+                /* set this list member's hidden 'deleted' flag to true */
+                $('#' + listMemberPrefix + '-deleted').val('1');
+                /* hide the list item */
+                $('#' + listMemberPrefix + '-container').fadeOut();
+            })
+        }
+
         return function(childParams, elementPrefix) {
             var countField = $('#' + elementPrefix + '-count');
+            var initialChildCount = parseInt(countField.val(), 10);
             var list = $('#' + elementPrefix + '-list');
 
             /* initialise children */
-            if (opts.childInitializer) {
-                for (var i = 0; i < childParams.length; i++) {
-                    opts.childInitializer(childParams[i], elementPrefix + '-' + i + '-value');
-                }
+            for (var i = 0; i < initialChildCount; i++) {
+                initListMember(childParams[i], elementPrefix + '-' + i);
             }
 
             /* initialise 'add' button */
             $('#' + elementPrefix + '-add').click(function() {
+                /* Update the counter and use it to create a prefix for the new list member */
                 var newIndex = parseInt(countField.val(), 10);
                 countField.val(newIndex + 1);
                 var newListMemberPrefix = elementPrefix + '-' + newIndex;
 
+                /* Create the new list member element with a unique ID prefix, and append it to the list */
                 var elem = $(listMemberTemplate.replace(/__PREFIX__/g, newListMemberPrefix));
                 list.append(elem);
-                if (opts.childInitializer) {
-                    opts.childInitializer(opts.templateChildParam, newListMemberPrefix + '-value');
-                }
+                initListMember(opts.templateChildParam, newListMemberPrefix);
             });
         };
     };
