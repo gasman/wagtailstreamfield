@@ -291,7 +291,7 @@ class ListFactory(BlockFactory):
 
     @property
     def media(self):
-        return Media(js=['js/blocks/macro.js', 'js/blocks/list.js']) + self.child_factory.media
+        return Media(js=['js/blocks/list.js']) + self.child_factory.media
 
     def render_list_member(self, value, prefix):
         """
@@ -406,7 +406,7 @@ class StreamFactory(BlockFactory):
 
     @property
     def media(self):
-        media = Media(js=['js/blocks/macro.js', 'js/blocks/stream.js'])
+        media = Media(js=['js/blocks/stream.js'])
         for child_factory in self.child_factories:
             media += child_factory.media
         return media
