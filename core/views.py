@@ -25,12 +25,12 @@ def home(request):
             {'name': 'Tim Berners-Lee', 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
             {'name': 'Bono', 'job_title': 'Singer'},
         ],
-        # 'content': [
-        #     {'type': 'heading', 'value': "The largest event for the things that the event is about!"},
-        #     {'type': 'image', 'value': 42},
-        #     {'type': 'heading', 'value': "Earlyish Bird tickets available now"},
-        #     {'type': 'image', 'value': 99},
-        # ],
+        'content': [
+            {'type': 'heading', 'value': "The largest event for the things that the event is about!"},
+            {'type': 'image', 'value': 42},
+            {'type': 'heading', 'value': "Earlyish Bird tickets available now"},
+            {'type': 'image', 'value': 99},
+        ],
     }
 
     page_factory = page_def.factory(page_def, definition_prefix='def')

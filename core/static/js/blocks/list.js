@@ -5,7 +5,7 @@
             childInitializer (optional) - JS initializer function for each child
             templateChildParam (optional) - first param to be passed to childInitializer when adding a new child
         */
-        var listMemberTemplate = $('#' + opts.definitionPrefix + '-childtemplate').text();
+        var listMemberTemplate = $('#' + opts.definitionPrefix + '-newmember').text();
 
         function initListMember(childParam, listMemberPrefix) {
             /* run childInitializer if one has been supplied */
@@ -20,7 +20,7 @@
                 $('#' + listMemberPrefix + '-deleted').val('1');
                 /* hide the list item */
                 $('#' + listMemberPrefix + '-container').fadeOut();
-            })
+            });
         }
 
         return function(childParams, elementPrefix) {

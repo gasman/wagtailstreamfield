@@ -1,13 +1,4 @@
-{% if label %}<label>{{ label }}</label>{% endif %}
-<input type="hidden" name="{{ prefix }}-count" id="{{ prefix }}-count" value="{{ self.child_records|length }}">
-<ul id="{{ self.prefix }}-list">
-    {% for index, block_type, child in child_records %}
-        {% include "core/blocks/stream_menu.html" %}
-        <li>
-            <input type="hidden" name="{{ self.prefix }}-{{ index }}-type" id="{{ self.prefix }}-{{ index }}-type" value="{{ block_type }}">
-            {{ child.render }}
-        </li>
-    {% endfor %}
+{% extends "core/blocks/sequence.html" %}
+{% block footer %}
     {% include "core/blocks/stream_menu.html" %}
-</ul>
-<!-- <input type="button" id="{{ self.prefix }}-add" value="Add another"> -->
+{% endblock %}

@@ -312,7 +312,7 @@ class ListFactory(BlockFactory):
         list_member_html = self.render_list_member(self.child_factory.default, '__PREFIX__')
 
         template_declaration = format_html(
-            '<script type="text/template" id="{0}-childtemplate">{1}</script>',
+            '<script type="text/template" id="{0}-newmember">{1}</script>',
             self.definition_prefix, list_member_html
         )
         child_declarations = self.child_factory.html_declarations()
@@ -376,13 +376,27 @@ class StreamFactory(BlockFactory):
             self.child_factories.append(factory)
             self.child_factories_by_name[name] = factory
 
+    def render_list_member(self, block_type_name, value, prefix):
+        """
+        Render the HTML for a single list item. This consists of an <li> wrapper, hidden fields
+        to manage ID/deleted state/type, delete/reorder buttons, and the child block's own HTML.
+        """
+        child_factory = self.child_factories_by_name[block_type_name]
+        child = child_factory.bind(value, prefix="%s-value" % prefix)
+        return render_to_string('core/blocks/stream_member.html', {
+            'child_factories': self.child_factories,
+            'block_type_name': block_type_name,
+            'prefix': prefix,
+            'child': child
+        })
+
     def html_declarations(self):
         child_declarations = format_html_join('\n', '{0}', [
             (child_factory.html_declarations(),)
             for child_factory in self.child_factories
         ])
         template_declarations = format_html_join(
-            '\n', '<script type="text/template" id="{0}-template-{1}">{2}</script>',
+            '\n', '<script type="text/template" id="{0}-newmember-{1}">{2}</script>',
             [
                 (self.definition_prefix, child_factory.name, child_factory.prototype_block().render())
                 for child_factory in self.child_factories
@@ -398,15 +412,15 @@ class StreamFactory(BlockFactory):
         return media
 
     def render(self, value, prefix=''):
-        child_records = []
-        for (i, child_data) in enumerate(value):
-            block_type = child_data['type']
-            child_factory = self.child_factories_by_name[block_type]
-            child = child_factory.bind(child_data['value'], prefix="%s-%d" % (prefix, i))
-            child_records.append((i, block_type, child))
+        list_members_html = [
+            self.render_list_member(member['type'], member['value'], "%s-%d" % (prefix, i))
+            for (i, member) in enumerate(value)
+        ]
 
         return render_to_string('core/blocks/stream.html', {
-            'child_records': child_records,
+            'label': self.label,
+            'prefix': prefix,
+            'list_members_html': list_members_html,
         })
 
 class StreamBlock(BlockOptions):

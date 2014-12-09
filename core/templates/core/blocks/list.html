@@ -1,8 +1,4 @@
-{% if label %}<label>{{ label }}</label>{% endif %}
-<input type="hidden" name="{{ prefix }}-count" id="{{ prefix }}-count" value="{{ list_members_html|length }}">
-<ul id="{{ prefix }}-list">
-    {% for list_member_html in list_members_html %}
-        {{ list_member_html }}
-    {% endfor %}
-</ul>
-<input type="button" id="{{ prefix }}-add" value="Add another">
+{% extends "core/blocks/sequence.html" %}
+{% block footer %}
+    <input type="button" id="{{ prefix }}-add" value="Add another">
+{% endblock %}

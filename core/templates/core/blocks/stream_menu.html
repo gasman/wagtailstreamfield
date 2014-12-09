@@ -1,5 +1,5 @@
-<ul>
-    {% for name in child_type_names %}
-        <li style="display: inline;"><a href="javascript:void(0)" id="{{ prefix }}-add-{{ name }}">{{ name }}</a></li>
+<ul class="stream-menu">
+    {% for child_factory in child_factories %}
+        <li style="display: inline;"><button id="{{ prefix }}-add-{{ child_factory.name }}">{{ child_factory.name }}</button></li>
     {% endfor %}
 </ul>

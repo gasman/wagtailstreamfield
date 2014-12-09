@@ -1,0 +1,5 @@
+<li id="{{ prefix }}-container">
+    <input type="hidden" id="{{ prefix }}-deleted" name="{{ prefix }}-deleted" value="">
+    {% block controls %}{% endblock %}
+    <div>{{ child.render }}</div>
+</li>
