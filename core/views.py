@@ -1,6 +1,6 @@
 from django.shortcuts import render
 
-from core.blocks import TextInput, Chooser, StructBlock, ListBlock #, StreamBlock
+from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock
 
 def home(request):
     SpeakerBlock = StructBlock([
@@ -13,33 +13,25 @@ def home(request):
     page_def = StructBlock([
         ('title', TextInput(label='Title')),
         ('speakers', ListBlock(SpeakerBlock, label='Speakers')),
-#        ('content', StreamBlock([
-#            ('heading', TextInput(label='Heading')),
-#            ('image', Chooser(label='Image'))
-#        ])),
+        ('content', StreamBlock([
+            ('heading', TextInput(label='Heading')),
+            ('image', Chooser(label='Image'))
+        ])),
     ])
 
     page_data = {
         'title': 'My lovely event',
-         'speakers': [
-             {'name': 'Tim Berners-Lee', 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
-             {'name': 'Bono', 'job_title': 'Singer'},
-         ],
+        'speakers': [
+            {'name': 'Tim Berners-Lee', 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
+            {'name': 'Bono', 'job_title': 'Singer'},
+        ],
+        # 'content': [
+        #     {'type': 'heading', 'value': "The largest event for the things that the event is about!"},
+        #     {'type': 'image', 'value': 42},
+        #     {'type': 'heading', 'value': "Earlyish Bird tickets available now"},
+        #     {'type': 'image', 'value': 99},
+        # ],
     }
-
-    # page = page_def({
-    #     'title': 'My lovely event',
-    #     'speakers': [
-    #         {'name': 'Tim Berners-Lee', 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
-    #         {'name': 'Bono', 'job_title': 'Singer'},
-    #     ],
-    #     'content': [
-    #         {'type': 'heading', 'value': "The largest event for the things that the event is about!"},
-    #         {'type': 'image', 'value': 42},
-    #         {'type': 'heading', 'value': "Earlyish Bird tickets available now"},
-    #         {'type': 'image', 'value': 99},
-    #     ],
-    # }, prefix='page')
 
     page_factory = page_def.factory(page_def, definition_prefix='def')
     page = page_factory.bind(page_data, prefix='page')

@@ -1,8 +1,8 @@
 {% if label %}<label>{{ label }}</label>{% endif %}
-<input type="hidden" name="{{ prefix }}-count" id="{{ prefix }}-count" value="{{ children|length }}">
+<input type="hidden" name="{{ prefix }}-count" id="{{ prefix }}-count" value="{{ list_members_html|length }}">
 <ul id="{{ prefix }}-list">
-    {% for child in children %}
-        <li>{{ child.render }}</li>
+    {% for list_member_html in list_members_html %}
+        {{ list_member_html }}
     {% endfor %}
 </ul>
 <input type="button" id="{{ prefix }}-add" value="Add another">

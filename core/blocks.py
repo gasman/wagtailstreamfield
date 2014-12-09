@@ -118,6 +118,14 @@ class BlockFactory(with_metaclass(MediaDefiningClass)):
         """
         return BoundBlock(self, prefix, value)
 
+    def prototype_block(self):
+        """
+        Return a BoundBlock that can be used as a basis for new empty block instances to be added on the fly
+        (new list items, for example). This will have a prefix of '__PREFIX__' (to be dynamically replaced with
+        a real prefix when it's inserted into the page) and a value equal to the block factory's default value.
+        """
+        return self.bind(self.default, '__PREFIX__')
+
 
 class BoundBlock(object):
     def __init__(self, factory, prefix, value):
@@ -279,17 +287,33 @@ class ListFactory(BlockFactory):
         child_block_options = self.block_options.child_block_options
         self.child_factory = child_block_options.factory(child_block_options,
             definition_prefix=self.definition_prefix + '-child')
-        self.template_child = self.child_factory.bind(self.child_factory.default, '__PREFIX__')
         self.child_js_declaration = self.child_factory.js_declaration()
 
     @property
     def media(self):
         return Media(js=['js/blocks/macro.js', 'js/blocks/list.js']) + self.child_factory.media
 
+    def render_list_member(self, value, prefix):
+        """
+        Render the HTML for a single list item. This consists of an <li> wrapper, hidden fields
+        to manage ID/deleted state, delete/reorder buttons, and the child block's own HTML.
+        """
+        child = self.child_factory.bind(value, prefix="%s-value" % prefix)
+        return render_to_string('core/blocks/list_member.html', {
+            'prefix': prefix,
+            'child': child
+        })
+
     def html_declarations(self):
+        # generate the HTML to be used when adding a new item to the list;
+        # this is the output of render_list_member as rendered with the prefix '__PREFIX__'
+        # (to be replaced dynamically when adding the new item) and the child block's default value
+        # as its value.
+        list_member_html = self.render_list_member(self.child_factory.default, '__PREFIX__')
+
         template_declaration = format_html(
-            '<script type="text/template" id="{0}-template">{1}</script>',
-            self.definition_prefix, self.template_child.render()
+            '<script type="text/template" id="{0}-childtemplate">{1}</script>',
+            self.definition_prefix, list_member_html
         )
         child_declarations = self.child_factory.html_declarations()
         return mark_safe(template_declaration + child_declarations)
@@ -299,7 +323,7 @@ class ListFactory(BlockFactory):
 
         if self.child_js_declaration:
             opts['childInitializer'] = self.child_js_declaration
-            opts['templateChildParam'] = self.template_child.js_declaration_param()
+            opts['templateChildParam'] = self.child_factory.prototype_block().js_declaration_param()
 
         return "ListBlock(%s)" % js_dict(opts)
 
@@ -315,13 +339,15 @@ class ListFactory(BlockFactory):
             return '[]'
 
     def render(self, value, prefix=''):
+        list_members_html = [
+            self.render_list_member(child_val, "%s-%d" % (prefix, i))
+            for (i, child_val) in enumerate(value)
+        ]
+
         return render_to_string('core/blocks/list.html', {
             'label': self.label,
             'prefix': prefix,
-            'children': [
-                self.child_factory.bind(child_val, prefix="%s-%d" % (prefix, i))
-                for (i, child_val) in enumerate(value)
-            ],
+            'list_members_html': list_members_html,
         })
 
 class ListBlock(BlockOptions):
@@ -330,6 +356,65 @@ class ListBlock(BlockOptions):
         self.child_block_options = child_block_options
 
     factory = ListFactory
+    default = []
+
+
+# ===========
+# StreamBlock
+# ===========
+
+class StreamFactory(BlockFactory):
+    def __init__(self, *args, **kwargs):
+        super(StreamFactory, self).__init__(*args, **kwargs)
+
+        self.child_factories = []
+        self.child_factories_by_name = {}
+
+        for (name, opts) in self.block_options.child_definitions:
+            prefix = "%s-def-%s" % (self.definition_prefix, name)
+            factory = opts.factory(opts, name=name, definition_prefix=prefix)
+            self.child_factories.append(factory)
+            self.child_factories_by_name[name] = factory
+
+    def html_declarations(self):
+        child_declarations = format_html_join('\n', '{0}', [
+            (child_factory.html_declarations(),)
+            for child_factory in self.child_factories
+        ])
+        template_declarations = format_html_join(
+            '\n', '<script type="text/template" id="{0}-template-{1}">{2}</script>',
+            [
+                (self.definition_prefix, child_factory.name, child_factory.prototype_block().render())
+                for child_factory in self.child_factories
+            ]
+        )
+        return mark_safe(child_declarations + template_declarations)
+
+    @property
+    def media(self):
+        media = Media(js=['js/blocks/macro.js', 'js/blocks/stream.js'])
+        for child_factory in self.child_factories:
+            media += child_factory.media
+        return media
+
+    def render(self, value, prefix=''):
+        child_records = []
+        for (i, child_data) in enumerate(value):
+            block_type = child_data['type']
+            child_factory = self.child_factories_by_name[block_type]
+            child = child_factory.bind(child_data['value'], prefix="%s-%d" % (prefix, i))
+            child_records.append((i, block_type, child))
+
+        return render_to_string('core/blocks/stream.html', {
+            'child_records': child_records,
+        })
+
+class StreamBlock(BlockOptions):
+    def __init__(self, child_definitions, **kwargs):
+        super(StreamBlock, self).__init__(**kwargs)
+        self.child_definitions = child_definitions
+
+    factory = StreamFactory
     default = []
 
 
