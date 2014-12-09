@@ -1,12 +1,10 @@
 import re
 
-from six import with_metaclass
-
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.template.loader import render_to_string
-from django.forms import MediaDefiningClass, Media
+from django.forms import Media
 
 # helpers for Javascript expression formatting
 
@@ -44,7 +42,17 @@ class BlockOptions(object):
             # then we'll revert to the block type's own default instead.
             pass
 
-class BlockFactory(with_metaclass(MediaDefiningClass)):
+class BlockFactory(object):
+    """
+    Setting a 'dependencies' list serves as a shortcut for the common case where a complex block type
+    (such as struct, list or stream) relies on one or more inner factory objects, and needs to ensure that
+    the responses from the 'media' and 'html_declarations' include the relevant declarations for those inner
+    factories, as well as its own. Specifying these inner factory objects in a 'dependencies' list means that
+    the base 'media' and 'html_declarations' methods will return those declarations; the outer block type can
+    then add its own declarations to the list by overriding those methods and using super().
+    """
+    dependencies = []
+
     def __init__(self, block_options, name=None, definition_prefix=''):
         self.block_options = block_options
         self.name = name
@@ -56,6 +64,13 @@ class BlockFactory(with_metaclass(MediaDefiningClass)):
         self.label = getattr(block_options, 'label', None)
         if self.label is None and self.name is not None:
             self.label = capfirst(self.name.replace('_', ' '))
+
+    @property
+    def media(self):
+        media = Media()
+        for dep in self.dependencies:
+            media += dep.media
+        return media
 
     def html_declarations(self):
         """
@@ -71,7 +86,10 @@ class BlockFactory(with_metaclass(MediaDefiningClass)):
         (More precisely, they must either be definition_prefix itself, or begin with definition_prefix
         followed by a '-' character)
         """
-        return ''
+        return format_html_join('\n', '{0}', [
+            (dep.html_declarations(),)
+            for dep in self.dependencies
+        ])
 
     def js_declaration(self):
         """
@@ -167,8 +185,9 @@ class TextInput(BlockOptions):
 # =======
 
 class ChooserFactory(BlockFactory):
-    class Media:
-        js = ['js/blocks/chooser.js']
+    @property
+    def media(self):
+        return super(ChooserFactory, self).media + Media(js=['js/blocks/chooser.js'])
 
     def js_declaration(self):
         return "Chooser('%s')" % self.definition_prefix
@@ -212,11 +231,7 @@ class StructFactory(BlockFactory):
             if js_declaration is not None:
                 self.child_js_declarations_by_name[factory.name] = js_declaration
 
-    def html_declarations(self):
-        return format_html_join('\n', '{0}', [
-            (child_factory.html_declarations(),)
-            for child_factory in self.child_factories
-        ])
+        self.dependencies = self.child_factories
 
     def js_declaration(self):
         # skip JS setup entirely if no children have js_declarations
@@ -244,10 +259,7 @@ class StructFactory(BlockFactory):
 
     @property
     def media(self):
-        media = Media(js=['js/blocks/struct.js'])
-        for item in self.child_factories:
-            media += item.media
-        return media
+        return super(StructFactory, self).media + Media(js=['js/blocks/struct.js'])
 
     def render(self, value, prefix=''):
         child_renderings = [
@@ -288,10 +300,11 @@ class ListFactory(BlockFactory):
         self.child_factory = child_block_options.factory(child_block_options,
             definition_prefix=self.definition_prefix + '-child')
         self.child_js_declaration = self.child_factory.js_declaration()
+        self.dependencies = [self.child_factory]
 
     @property
     def media(self):
-        return Media(js=['js/blocks/list.js']) + self.child_factory.media
+        return super(ListFactory, self).media + Media(js=['js/blocks/list.js'])
 
     def render_list_member(self, value, prefix):
         """
@@ -315,8 +328,7 @@ class ListFactory(BlockFactory):
             '<script type="text/template" id="{0}-newmember">{1}</script>',
             self.definition_prefix, list_member_html
         )
-        child_declarations = self.child_factory.html_declarations()
-        return mark_safe(template_declaration + child_declarations)
+        return mark_safe(super(ListFactory, self).html_declarations() + template_declaration)
 
     def js_declaration(self):
         opts = {'definitionPrefix': "'%s'" % self.definition_prefix}
@@ -376,6 +388,8 @@ class StreamFactory(BlockFactory):
             self.child_factories.append(factory)
             self.child_factories_by_name[name] = factory
 
+        self.dependencies = self.child_factories
+
     def render_list_member(self, block_type_name, value, prefix):
         """
         Render the HTML for a single list item. This consists of an <li> wrapper, hidden fields
@@ -391,25 +405,37 @@ class StreamFactory(BlockFactory):
         })
 
     def html_declarations(self):
-        child_declarations = format_html_join('\n', '{0}', [
-            (child_factory.html_declarations(),)
-            for child_factory in self.child_factories
-        ])
         template_declarations = format_html_join(
             '\n', '<script type="text/template" id="{0}-newmember-{1}">{2}</script>',
             [
-                (self.definition_prefix, child_factory.name, child_factory.prototype_block().render())
+                (
+                    self.definition_prefix,
+                    child_factory.name,
+                    self.render_list_member(child_factory.name, child_factory.default, '__PREFIX__')
+                )
                 for child_factory in self.child_factories
             ]
         )
-        return mark_safe(child_declarations + template_declarations)
+        return mark_safe(super(StreamFactory, self).html_declarations() + template_declarations)
 
     @property
     def media(self):
-        media = Media(js=['js/blocks/stream.js'])
+        return super(StreamFactory, self).media + Media(js=['js/blocks/stream.js'])
+
+    def js_declaration(self):
+        child_js_declarations = {}
         for child_factory in self.child_factories:
-            media += child_factory.media
-        return media
+            child_js_declaration = child_factory.js_declaration()
+            if child_js_declaration:
+                child_js_declarations[child_factory.name] = child_js_declaration
+
+        opts = {
+            'definitionPrefix': "'%s'" % self.definition_prefix,
+            'childDeclarations': js_dict(child_js_declarations),
+        }
+
+        return "StreamBlock(%s)" % js_dict(opts)
+
 
     def render(self, value, prefix=''):
         list_members_html = [
@@ -484,27 +510,3 @@ class StreamBlock(BlockOptions):
 
 #         return "StreamBlock([\n%s\n])" % ',\n'.join(child_js_defs)
 
-#     @property
-#     def media(self):
-#         media = Media(js=['js/blocks/stream.js'])
-#         for name, item in self.child_defs:
-#             media += item.media
-#         return media
-
-#     def render(self, value, prefix=''):
-#         child_records = []
-#         index = 0
-
-#         for item in value:
-#             child_def = self.child_defs_by_name.get(item['type'])
-#             if child_def:
-#                 child = child_def(item['value'], prefix="%s-%d-item" % (prefix, index))
-#                 child_records.append((index, item['type'], child))
-#                 index += 1
-
-#         return render_to_string('core/blocks/stream.html', {
-#             'label': self.label,
-#             'prefix': prefix,
-#             'child_records': child_records,
-#             'child_type_names': [name for (name, child_def) in self.child_defs],
-#         })
