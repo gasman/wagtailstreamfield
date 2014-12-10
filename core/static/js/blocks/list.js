@@ -10,23 +10,23 @@
         return function(childParams, elementPrefix) {
             var sequence = Sequence({
                 'prefix': elementPrefix,
-                'onInitializeMember': function(sequenceMember, memberPrefix) {
+                'onInitializeMember': function(sequenceMember) {
                     /* code to be run on initializing each element, regardless of whether it's part of the
                     initial list or being added dynamically */
 
                     /* initialise delete button */
-                    $('#' + memberPrefix + '-delete').click(function() {
+                    $('#' + sequenceMember.prefix + '-delete').click(function() {
                         sequenceMember.delete();
                     });
                 },
-                'onInitializeNewMember': function(sequenceMember, memberPrefix) {
+                'onInitializeNewMember': function(sequenceMember) {
                     if (opts.childInitializer) {
-                        opts.childInitializer(opts.templateChildParam, memberPrefix + '-value');
+                        opts.childInitializer(opts.templateChildParam, sequenceMember.prefix + '-value');
                     }
                 },
-                'onInitializeInitialMember': function(sequenceMember, memberPrefix, index) {
+                'onInitializeInitialMember': function(sequenceMember, index) {
                     if (opts.childInitializer) {
-                        opts.childInitializer(childParams[index], memberPrefix + '-value');
+                        opts.childInitializer(childParams[index], sequenceMember.prefix + '-value');
                     }
                 }
             });

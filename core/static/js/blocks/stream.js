@@ -25,16 +25,16 @@
         return function(childParams, elementPrefix) {
             var sequence = Sequence({
                 'prefix': elementPrefix,
-                'onInitializeMember': function(sequenceMember, memberPrefix) {
+                'onInitializeMember': function(sequenceMember) {
                     /* initialize delete button */
-                    $('#' + memberPrefix + '-delete').click(function() {
+                    $('#' + sequenceMember.prefix + '-delete').click(function() {
                         sequenceMember.delete();
                     });
 
                     /* initialize 'prepend new block' buttons */
                     function initializePrependButton(childBlock) {
                         var template = listMemberTemplates[childBlock.name];
-                        $('#' + memberPrefix + '-add-' + childBlock.name).click(function() {
+                        $('#' + sequenceMember.prefix + '-add-' + childBlock.name).click(function() {
                             sequenceMember.prependMember(template);
                         });
                     }
@@ -42,13 +42,13 @@
                         initializePrependButton(opts.childBlocks[i]);
                     }
                 },
-                'onInitializeInitialMember': function(sequenceMember, memberPrefix, index) {
-                    var blockTypeName = $('#' + memberPrefix + '-type').val();
-                    initChild(blockTypeName, childParams[index], memberPrefix);
+                'onInitializeInitialMember': function(sequenceMember, index) {
+                    var blockTypeName = $('#' + sequenceMember.prefix + '-type').val();
+                    initChild(blockTypeName, childParams[index], sequenceMember.prefix);
                 },
-                'onInitializeNewMember': function(sequenceMember, memberPrefix) {
-                    var blockTypeName = $('#' + memberPrefix + '-type').val();
-                    initChild(blockTypeName, childBlocksByName[blockTypeName].templateInitializerParam, memberPrefix);
+                'onInitializeNewMember': function(sequenceMember) {
+                    var blockTypeName = $('#' + sequenceMember.prefix + '-type').val();
+                    initChild(blockTypeName, childBlocksByName[blockTypeName].templateInitializerParam, sequenceMember.prefix);
                 }
             });
 

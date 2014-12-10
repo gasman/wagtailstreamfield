@@ -72,10 +72,10 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
 
             /* run any supplied initializer functions */
             if (opts.onInitializeMember) {
-                opts.onInitializeMember(newMember, newMember.prefix);
+                opts.onInitializeMember(newMember);
             }
             if (opts.onInitializeNewMember) {
-                opts.onInitializeNewMember(newMember, newMember.prefix);
+                opts.onInitializeNewMember(newMember);
             }
 
             newMember._markAdded();
@@ -96,10 +96,10 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
 
             /* run any supplied initializer functions */
             if (opts.onInitializeMember) {
-                opts.onInitializeMember(newMember, newMember.prefix);
+                opts.onInitializeMember(newMember);
             }
             if (opts.onInitializeNewMember) {
-                opts.onInitializeNewMember(newMember, newMember.prefix);
+                opts.onInitializeNewMember(newMember);
             }
 
             newMember._markAdded();
@@ -123,10 +123,10 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
             var sequenceMember = SequenceMember(self, memberPrefix);
             members[i] = sequenceMember;
             if (opts.onInitializeMember) {
-                opts.onInitializeMember(sequenceMember, memberPrefix);
+                opts.onInitializeMember(sequenceMember);
             }
             if (opts.onInitializeInitialMember) {
-                opts.onInitializeInitialMember(sequenceMember, memberPrefix, i);
+                opts.onInitializeInitialMember(sequenceMember, i);
             }
         }
 
