@@ -278,16 +278,19 @@ class StructFactory(BlockFactory):
         else:
             return format_html("<ul>{0}</ul>", list_items)
 
-class StructBlock(BlockOptions):
+class InheritableBlockOptions(BlockOptions):
+    """A special case of BlockOptions as used by StructBlock and StreamBlock where child_definitions
+    can be defined either by subclassing or by being passed to __init__"""
     def __init__(self, child_definitions=None, **kwargs):
-        # look in our own __dict__ for child BlockOptions definitions that have been added by
-        # subclassing StructBlock
+        # look in our own __dict__ for child BlockOptions definitions that have been added by subclassing
         self.child_definitions = [
             item for item in self.__class__.__dict__.items() if isinstance(item[1], BlockOptions)
         ]
+        # FIXME: looping over __dict__ like this won't pick up fields defined on a superclass
+        # (e.g. StructBlock -> SpeakerBlock -> ExpertSpeakerBlock)
         self.child_definitions.sort(key=lambda x: x[1].creation_counter)
 
-        super(StructBlock, self).__init__(**kwargs)
+        super(InheritableBlockOptions, self).__init__(**kwargs)
 
         if child_definitions:
             self.child_definitions += [
@@ -296,6 +299,7 @@ class StructBlock(BlockOptions):
                 for (name, child_def) in child_definitions
             ]
 
+class StructBlock(InheritableBlockOptions):
     class Meta:
         factory = StructFactory
         default = {}
@@ -488,15 +492,7 @@ class StreamFactory(BlockFactory):
             'header_menu_prefix': '%s-before' % prefix,
         })
 
-class StreamBlock(BlockOptions):
-    def __init__(self, child_definitions, **kwargs):
-        super(StreamBlock, self).__init__(**kwargs)
-        self.child_definitions = [
-            # convert child definitions to instances if they've been passed as classes
-            (name, child_def() if isinstance(child_def, type) else child_def)
-            for (name, child_def) in child_definitions
-        ]
-
+class StreamBlock(InheritableBlockOptions):
     class Meta:
         factory = StreamFactory
         default = []

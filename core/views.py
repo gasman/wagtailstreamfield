@@ -8,14 +8,19 @@ class SpeakerBlock(StructBlock):
     nicknames = ListBlock(TextInput)
     image = Chooser()
 
+class ContentBlock(StreamBlock):
+    heading = TextInput()
+    image = Chooser(label='Image')
+
+#class ExpertSpeakerBlock(SpeakerBlock):
+#    specialist_subject = TextInput()
+
 def home(request):
     page_def = StructBlock([
         ('title', TextInput(label='Title')),
         ('speakers', ListBlock(SpeakerBlock(), label='Speakers')),
-        ('content', StreamBlock([
-            ('heading', TextInput),
-            ('image', Chooser(label='Image')),
-            ('speaker', SpeakerBlock([('specialist_subject', TextInput)], label='Featured speaker')),
+        ('content', ContentBlock([
+            ('speaker', SpeakerBlock([('another_specialist_subject', TextInput)], label='Featured speaker')),
         ])),
     ])
 
