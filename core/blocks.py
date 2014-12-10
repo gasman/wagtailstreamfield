@@ -30,10 +30,15 @@ def js_dict(d):
 # =========================================
 
 class BlockOptions(object):
+    creation_counter = 0
     def __init__(self, **kwargs):
         # standard options are 'label' and 'default'
         self.label = kwargs.get('label')
         self.default = kwargs.get('default', self.Meta.default)
+
+        # Increase the creation counter, and save our local copy.
+        self.creation_counter = BlockOptions.creation_counter
+        BlockOptions.creation_counter += 1
 
 class BlockFactory(object):
     """
@@ -274,13 +279,22 @@ class StructFactory(BlockFactory):
             return format_html("<ul>{0}</ul>", list_items)
 
 class StructBlock(BlockOptions):
-    def __init__(self, child_definitions, **kwargs):
-        super(StructBlock, self).__init__(**kwargs)
+    def __init__(self, child_definitions=None, **kwargs):
+        # look in our own __dict__ for child BlockOptions definitions that have been added by
+        # subclassing StructBlock
         self.child_definitions = [
-            # convert child definitions to instances if they've been passed as classes
-            (name, child_def() if isinstance(child_def, type) else child_def)
-            for (name, child_def) in child_definitions
+            item for item in self.__class__.__dict__.items() if isinstance(item[1], BlockOptions)
         ]
+        self.child_definitions.sort(key=lambda x: x[1].creation_counter)
+
+        super(StructBlock, self).__init__(**kwargs)
+
+        if child_definitions:
+            self.child_definitions += [
+                # convert child definitions to instances if they've been passed as classes
+                (name, child_def() if isinstance(child_def, type) else child_def)
+                for (name, child_def) in child_definitions
+            ]
 
     class Meta:
         factory = StructFactory

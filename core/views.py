@@ -2,21 +2,20 @@ from django.shortcuts import render
 
 from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock
 
-def home(request):
-    SpeakerBlock = StructBlock([
-        ('name', TextInput(label='Full name')),
-        ('job_title', TextInput(default="just this guy, y'know?")),
-        ('nicknames', ListBlock(TextInput)),
-        ('image', Chooser),
-    ])
+class SpeakerBlock(StructBlock):
+    name = TextInput(label='Full name')
+    job_title = TextInput(default="just this guy, y'know?")
+    nicknames = ListBlock(TextInput)
+    image = Chooser()
 
+def home(request):
     page_def = StructBlock([
         ('title', TextInput(label='Title')),
-        ('speakers', ListBlock(SpeakerBlock, label='Speakers')),
+        ('speakers', ListBlock(SpeakerBlock(), label='Speakers')),
         ('content', StreamBlock([
             ('heading', TextInput),
             ('image', Chooser(label='Image')),
-            ('speaker', SpeakerBlock),
+            ('speaker', SpeakerBlock([('specialist_subject', TextInput)], label='Featured speaker')),
         ])),
     ])
 
