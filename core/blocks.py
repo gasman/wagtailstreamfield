@@ -281,7 +281,11 @@ class StructFactory(BlockFactory):
 class StructBlock(BlockOptions):
     def __init__(self, child_definitions, **kwargs):
         super(StructBlock, self).__init__(**kwargs)
-        self.child_definitions = child_definitions
+        self.child_definitions = [
+            # convert child definitions to instances if they've been passed as classes
+            (child_def() if isinstance(child_def, type) else child_def)
+            for child_def in child_definitions
+        ]
 
     factory = StructFactory
     default = {}
@@ -365,7 +369,11 @@ class ListFactory(BlockFactory):
 class ListBlock(BlockOptions):
     def __init__(self, child_block_options, **kwargs):
         super(ListBlock, self).__init__(**kwargs)
-        self.child_block_options = child_block_options
+        if isinstance(child_block_options, type):
+            # child_block_options was passed as a class, so convert it to a BlockOptions instance
+            self.child_block_options = child_block_options() 
+        else:
+            self.child_block_options = child_block_options
 
     factory = ListFactory
     default = []
@@ -472,7 +480,11 @@ class StreamFactory(BlockFactory):
 class StreamBlock(BlockOptions):
     def __init__(self, child_definitions, **kwargs):
         super(StreamBlock, self).__init__(**kwargs)
-        self.child_definitions = child_definitions
+        self.child_definitions = [
+            # convert child definitions to instances if they've been passed as classes
+            (child_def() if isinstance(child_def, type) else child_def)
+            for child_def in child_definitions
+        ]
 
     factory = StreamFactory
     default = []

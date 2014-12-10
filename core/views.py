@@ -6,15 +6,15 @@ def home(request):
     SpeakerBlock = StructBlock([
         ('name', TextInput(label='Full name')),
         ('job_title', TextInput(default="just this guy, y'know?")),
-        ('nicknames', ListBlock(TextInput(label='Nickname'))),
-        ('image', Chooser(label='Image')),
+        ('nicknames', ListBlock(TextInput)),
+        ('image', Chooser),
     ])
 
     page_def = StructBlock([
         ('title', TextInput(label='Title')),
         ('speakers', ListBlock(SpeakerBlock, label='Speakers')),
         ('content', StreamBlock([
-            ('heading', TextInput()),
+            ('heading', TextInput),
             ('image', Chooser(label='Image')),
             ('speaker', SpeakerBlock),
         ])),
