@@ -15,7 +15,8 @@ def home(request):
         ('speakers', ListBlock(SpeakerBlock, label='Speakers')),
         ('content', StreamBlock([
             ('heading', TextInput()),
-            ('image', Chooser(label='Image'))
+            ('image', Chooser(label='Image')),
+            ('speaker', SpeakerBlock),
         ])),
     ])
 
