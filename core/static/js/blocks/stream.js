@@ -26,10 +26,21 @@
             var sequence = Sequence({
                 'prefix': elementPrefix,
                 'onInitializeMember': function(sequenceMember, memberPrefix) {
-                    /* initialise delete button */
+                    /* initialize delete button */
                     $('#' + memberPrefix + '-delete').click(function() {
                         sequenceMember.delete();
                     });
+
+                    /* initialize 'prepend new block' buttons */
+                    function initializePrependButton(childBlock) {
+                        var template = listMemberTemplates[childBlock.name];
+                        $('#' + memberPrefix + '-add-' + childBlock.name).click(function() {
+                            sequenceMember.prependMember(template);
+                        });
+                    }
+                    for (var i = 0; i < opts.childBlocks.length; i++) {
+                        initializePrependButton(opts.childBlocks[i]);
+                    }
                 },
                 'onInitializeInitialMember': function(sequenceMember, memberPrefix, index) {
                     var blockTypeName = $('#' + memberPrefix + '-type').val();

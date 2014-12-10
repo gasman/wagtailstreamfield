@@ -9,17 +9,24 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
     window.SequenceMember = function(sequence, prefix) {
         var self = {};
         self.prefix = prefix;
-        var container = $('#' + self.prefix + '-container');
+        self.container = $('#' + self.prefix + '-container');
         var indexField = $('#' + self.prefix + '-order');
 
         self.delete = function() {
             sequence.deleteMember(self);
         };
+        self.prependMember = function(template) {
+            sequence.insertMemberBefore(self, template);
+        };
         self._markDeleted = function() {
             /* set this list member's hidden 'deleted' flag to true */
             $('#' + self.prefix + '-deleted').val('1');
             /* hide the list item */
-            $('#' + self.prefix + '-container').fadeOut();
+            self.container.fadeOut();
+        };
+        self._markAdded = function() {
+            self.container.hide();
+            self.container.slideDown();
         };
         self.getIndex = function() {
             return parseInt(indexField.val(), 10);
@@ -40,27 +47,64 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
         self.getCount = function() {
             return parseInt(countField.val(), 10);
         };
-        self.appendMember = function(template) {
+
+        function getNewMemberPrefix() {
             /* Update the counter and use it to create a prefix for the new list member */
             var newIndex = self.getCount();
             countField.val(newIndex + 1);
-            var newMemberPrefix = opts.prefix + '-' + newIndex;
+            return opts.prefix + '-' + newIndex;
+        }
 
-            /* Create the new list member element with a unique ID prefix, and append it to the list */
+        self.insertMemberBefore = function(otherMember, template) {
+            newMemberPrefix = getNewMemberPrefix();
+
+            /* Create the new list member element with the real prefix substituted in */
             var elem = $(template.replace(/__PREFIX__/g, newMemberPrefix));
-            list.append(elem);
-            var sequenceMember = SequenceMember(self, newMemberPrefix);
-            sequenceMember.setIndex(members.length);
-            members.push(sequenceMember);
+            otherMember.container.before(elem);
+            var newMember = SequenceMember(self, newMemberPrefix);
+            var index = otherMember.getIndex();
 
+            /* bump up index of otherMember and subsequent members */
+            for (var i = otherMember.getIndex(); i < members.length; i++) {
+                members[i].setIndex(i + 1);
+            }
+            members.splice(index, 0, newMember);
+
+            /* run any supplied initializer functions */
             if (opts.onInitializeMember) {
-                opts.onInitializeMember(sequenceMember, newMemberPrefix);
+                opts.onInitializeMember(newMember, newMember.prefix);
             }
             if (opts.onInitializeNewMember) {
-                opts.onInitializeNewMember(sequenceMember, newMemberPrefix);
+                opts.onInitializeNewMember(newMember, newMember.prefix);
             }
 
-            return sequenceMember;
+            newMember._markAdded();
+
+            return newMember;
+        };
+
+        self.appendMember = function(template) {
+            newMemberPrefix = getNewMemberPrefix();
+
+            /* Create the new list member element with the real prefix substituted in */
+            var elem = $(template.replace(/__PREFIX__/g, newMemberPrefix));
+
+            list.append(elem);
+            var newMember = SequenceMember(self, newMemberPrefix);
+            newMember.setIndex(members.length);
+            members.push(newMember);
+
+            /* run any supplied initializer functions */
+            if (opts.onInitializeMember) {
+                opts.onInitializeMember(newMember, newMember.prefix);
+            }
+            if (opts.onInitializeNewMember) {
+                opts.onInitializeNewMember(newMember, newMember.prefix);
+            }
+
+            newMember._markAdded();
+
+            return newMember;
         };
         self.deleteMember = function(member) {
             var index = member.getIndex();
@@ -73,6 +117,7 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
             member._markDeleted();
         };
 
+        /* initialize initial list members */
         for (var i = 0; i < self.getCount(); i++) {
             var memberPrefix = opts.prefix + '-' + i;
             var sequenceMember = SequenceMember(self, memberPrefix);
