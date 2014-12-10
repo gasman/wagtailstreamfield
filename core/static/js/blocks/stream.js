@@ -12,7 +12,7 @@
             listMemberTemplates[childBlock.name] = template;
         }
 
-        function initListMember(blockTypeName, childParam, listMemberPrefix) {
+        function initChild(blockTypeName, childParam, listMemberPrefix) {
             blockOpts = childBlocksByName[blockTypeName];
 
             /* run childInitializer if one has been supplied */
@@ -30,14 +30,26 @@
                     $('#' + memberPrefix + '-delete').click(function() {
                         sequenceMember.delete();
                     });
+                },
+                'onInitializeInitialMember': function(sequenceMember, memberPrefix, index) {
+                    var blockTypeName = $('#' + memberPrefix + '-type').val();
+                    initChild(blockTypeName, childParams[index], memberPrefix);
+                },
+                'onInitializeNewMember': function(sequenceMember, memberPrefix) {
+                    var blockTypeName = $('#' + memberPrefix + '-type').val();
+                    initChild(blockTypeName, childBlocksByName[blockTypeName].templateInitializerParam, memberPrefix);
                 }
             });
 
-            /* initialise children */
-            for (var i = 0; i < childParams.length; i++) {
-                var listMemberPrefix = elementPrefix + '-' + i;
-                var blockTypeName = $('#' + listMemberPrefix + '-type').val();
-                initListMember(blockTypeName, childParams[i], listMemberPrefix);
+            /* initialize footer menu */
+            function initializeAppendButton(childBlock) {
+                var template = listMemberTemplates[childBlock.name];
+                $('#' + elementPrefix + '-after-add-' + childBlock.name).click(function() {
+                    sequence.appendMember(template);
+                });
+            }
+            for (var i = 0; i < opts.childBlocks.length; i++) {
+                initializeAppendButton(opts.childBlocks[i]);
             }
         };
     };
