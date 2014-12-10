@@ -91,12 +91,12 @@ class BlockFactory(object):
             for dep in self.dependencies
         ])
 
-    def js_declaration(self):
+    def js_initializer(self):
         """
         Returns a Javascript expression string, or None if this block does not require any
         Javascript behaviour. This expression evaluates to an initializer function, a function that
         takes two arguments:
-        1) the value returned by js_declaration_param, identifying relevant
+        1) the value returned by js_initializer_param, identifying relevant
         characteristics of the block content,
         2) the ID prefix
         - and applies JS behaviour to the block instance with that value and prefix.
@@ -107,11 +107,10 @@ class BlockFactory(object):
         """
         return None
 
-    def js_declaration_param(self, value):
+    def js_initializer_param(self, value):
         """
-        Return a Javascript expression that evaluates to a value to be passed as the 
-        for the parameters that should be passed to the meta-initializer function for a block
-        whose content is 'value'.
+        Given a block value, return a Javascript expression string that incorporates all information
+        about that value that the initializer function needs to know.
 
         The parent block of this block (or the top-level page code) should avoid evaluating this
         expression more times than necessary. (Roughly speaking, this means once per block instance
@@ -154,8 +153,8 @@ class BoundBlock(object):
     def render(self):
         return self.factory.render(self.value, self.prefix)
 
-    def js_declaration_param(self):
-        return self.factory.js_declaration_param(self.value)
+    def js_initializer_param(self):
+        return self.factory.js_initializer_param(self.value)
 
 
 # ==========
@@ -189,7 +188,7 @@ class ChooserFactory(BlockFactory):
     def media(self):
         return super(ChooserFactory, self).media + Media(js=['js/blocks/chooser.js'])
 
-    def js_declaration(self):
+    def js_initializer(self):
         return "Chooser('%s')" % self.definition_prefix
 
     def render(self, value, prefix=''):
@@ -225,35 +224,35 @@ class StructFactory(BlockFactory):
             self.child_factories.append(factory)
             self.child_factories_by_name[name] = factory
 
-        self.child_js_declarations_by_name = {}
+        self.child_js_initializers_by_name = {}
         for factory in self.child_factories:
-            js_declaration = factory.js_declaration()
-            if js_declaration is not None:
-                self.child_js_declarations_by_name[factory.name] = js_declaration
+            js_initializer = factory.js_initializer()
+            if js_initializer is not None:
+                self.child_js_initializers_by_name[factory.name] = js_initializer
 
         self.dependencies = self.child_factories
 
-    def js_declaration(self):
-        # skip JS setup entirely if no children have js_declarations
-        if not self.child_js_declarations_by_name:
+    def js_initializer(self):
+        # skip JS setup entirely if no children have js_initializers
+        if not self.child_js_initializers_by_name:
             return None
 
-        return "StructBlock(%s)" % js_dict(self.child_js_declarations_by_name)
+        return "StructBlock(%s)" % js_dict(self.child_js_initializers_by_name)
 
-    def js_declaration_param(self, value):
+    def js_initializer_param(self, value):
         # Return value should be a mapping:
         # {
-        #    'firstChild': js_declaration_param_for_first_child,
-        #    'secondChild': js_declaration_param_for_second_child
+        #    'firstChild': js_initializer_param_for_first_child,
+        #    'secondChild': js_initializer_param_for_second_child
         # }
-        # - for each child that provides a js_declaration.
+        # - for each child that provides a js_initializer.
 
         child_params = {}
 
-        for child_name in self.child_js_declarations_by_name.keys():
+        for child_name in self.child_js_initializers_by_name.keys():
             factory = self.child_factories_by_name[child_name]
             child_value = value.get(child_name, factory.default)
-            child_params[child_name] = factory.js_declaration_param(child_value)
+            child_params[child_name] = factory.js_initializer_param(child_value)
 
         return js_dict(child_params)
 
@@ -299,7 +298,7 @@ class ListFactory(BlockFactory):
         child_block_options = self.block_options.child_block_options
         self.child_factory = child_block_options.factory(child_block_options,
             definition_prefix=self.definition_prefix + '-child')
-        self.child_js_declaration = self.child_factory.js_declaration()
+        self.child_js_initializer = self.child_factory.js_initializer()
         self.dependencies = [self.child_factory]
 
     @property
@@ -330,20 +329,20 @@ class ListFactory(BlockFactory):
         )
         return mark_safe(super(ListFactory, self).html_declarations() + template_declaration)
 
-    def js_declaration(self):
+    def js_initializer(self):
         opts = {'definitionPrefix': "'%s'" % self.definition_prefix}
 
-        if self.child_js_declaration:
-            opts['childInitializer'] = self.child_js_declaration
-            opts['templateChildParam'] = self.child_factory.prototype_block().js_declaration_param()
+        if self.child_js_initializer:
+            opts['childInitializer'] = self.child_js_initializer
+            opts['templateChildParam'] = self.child_factory.prototype_block().js_initializer_param()
 
         return "ListBlock(%s)" % js_dict(opts)
 
-    def js_declaration_param(self, value):
-        if self.child_js_declaration:
-            # Return value is an array of js_declaration_params, one for each child block in the list
+    def js_initializer_param(self, value):
+        if self.child_js_initializer:
+            # Return value is an array of js_initializer_params, one for each child block in the list
             child_params = [
-                indent(self.child_factory.js_declaration_param(child_value))
+                indent(self.child_factory.js_initializer_param(child_value))
                 for child_value in value
             ]
             return '[\n%s\n]' % ',\n'.join(child_params)
@@ -422,7 +421,7 @@ class StreamFactory(BlockFactory):
     def media(self):
         return super(StreamFactory, self).media + Media(js=['js/blocks/stream.js'])
 
-    def js_declaration(self):
+    def js_initializer(self):
         # compile a list of info dictionaries, one for each available block type
         child_blocks = []
         for child_factory in self.child_factories:
@@ -430,10 +429,12 @@ class StreamFactory(BlockFactory):
             child_block_info = {'name': "'%s'" % child_factory.name}
 
             # if the child defines a JS initializer function, include that in the info dict
-            child_js_declaration = child_factory.js_declaration()
-            if child_js_declaration:
-                child_block_info['initializer'] = child_js_declaration
-                child_block_info['templateInitializerParam'] = child_factory.prototype_block().js_declaration_param()
+            # along with the param that needs to be passed to it for initializing an empty/default block
+            # of that type
+            child_js_initializer = child_factory.js_initializer()
+            if child_js_initializer:
+                child_block_info['initializer'] = child_js_initializer
+                child_block_info['templateInitializerParam'] = child_factory.prototype_block().js_initializer_param()
 
             child_blocks.append(indent(js_dict(child_block_info)))
 
@@ -444,10 +445,10 @@ class StreamFactory(BlockFactory):
 
         return "StreamBlock(%s)" % js_dict(opts)
 
-    def js_declaration_param(self, value):
-        # Return value is an array of js_declaration_params, one for each child block in the list
+    def js_initializer_param(self, value):
+        # Return value is an array of js_initializer_params, one for each child block in the list
         child_params = [
-            indent(self.child_factories_by_name[child['type']].js_declaration_param(child['value']))
+            indent(self.child_factories_by_name[child['type']].js_initializer_param(child['value']))
             for child in value
         ]
         return '[\n%s\n]' % ',\n'.join(child_params)
@@ -473,57 +474,3 @@ class StreamBlock(BlockOptions):
 
     factory = StreamFactory
     default = []
-
-
-# class StreamBlock(Block):
-#     def __init__(self, child_defs, **kwargs):
-#         self.child_defs = child_defs
-#         self.default = kwargs.get('default', [])
-#         self.label = kwargs.get('label', '')
-
-#         self.child_defs_by_name = {}
-#         self.template_children = {}
-#         for name, child_def in self.child_defs:
-#             self.child_defs_by_name[name] = child_def
-#             self.template_children[name] = child_def(prefix="__PREFIX__")
-
-#     def html_declarations(self, definition_prefix):
-#         child_def_declarations = [
-#             format_html(
-#                 """
-#                     {html_declarations}
-#                     <script type="text/template" id="{definition_prefix}-template-{child_name}">
-#                         {child_template}
-#                     </script>
-#                 """,
-#                 html_declarations=child_def.html_declarations("%s-child-%s" % (definition_prefix, name)),
-#                 definition_prefix=definition_prefix,
-#                 child_name=name,
-#                 child_template=self.template_children[name].render()
-#             )
-#             for (name, child_def) in self.child_defs
-#         ]
-#         menu_html = render_to_string('core/blocks/stream_menu.html', {
-#             'child_names': [name for (name, child_def) in self.child_defs],
-#             'prefix': '__PREFIX__'
-#         })
-#         menu_declaration = format_html(
-#             """<script type="text/template" id="{definition_prefix}-menutemplate">{menu_html}</script>""",
-#             definition_prefix=definition_prefix, menu_html=menu_html)
-
-#         return mark_safe('\n'.join(child_def_declarations) + menu_declaration)
-
-#     def js_initializer(self, definition_prefix):
-#         child_js_defs = [
-#             """{{
-#                 'name': '{child_name}',
-#                 'initializer': {initializer}
-#             }}""".format(
-#                 child_name=name,
-#                 initializer=child_def.js_initializer("%s-child-%s" % (definition_prefix, name)) or 'null'
-#             )
-#             for name, child_def in self.child_defs
-#         ]
-
-#         return "StreamBlock([\n%s\n])" % ',\n'.join(child_js_defs)
-

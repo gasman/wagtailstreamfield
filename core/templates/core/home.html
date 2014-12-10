@@ -5,14 +5,14 @@
         {{ page.factory.media }}
         {{ page.factory.html_declarations }}
 
-        {% with page.factory.js_declaration as js_declaration %}
-            {% if js_declaration %}
+        {% with page.factory.js_initializer as js_initializer %}
+            {% if js_initializer %}
                 <script>
                     $(function() {
 
-var pageInitializer = {{ js_declaration|safe }};
+var pageInitializer = {{ js_initializer|safe }};
 
-pageInitializer({{ page.js_declaration_param|safe }}, 'page');
+pageInitializer({{ page.js_initializer_param|safe }}, 'page');
 
                     })
                 </script>

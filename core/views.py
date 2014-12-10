@@ -39,6 +39,6 @@ def home(request):
     return render(request, 'core/home.html', {
         'media': page_factory.media,
         'declarations': page_factory.html_declarations(),
-        'initializer': page_factory.js_declaration(),
+        'initializer': page_factory.js_initializer(),
         'page': page,
     })
