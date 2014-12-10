@@ -6,13 +6,16 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
 (list.js / stream.js) to attach this to the SequenceMember.delete method.
 */
 (function($) {
-    window.SequenceMember = function(prefix) {
+    window.SequenceMember = function(sequence, prefix) {
         var self = {};
         self.prefix = prefix;
         var container = $('#' + self.prefix + '-container');
         var indexField = $('#' + self.prefix + '-order');
 
         self.delete = function() {
+            sequence.deleteMember(self);
+        };
+        self._markDeleted = function() {
             /* set this list member's hidden 'deleted' flag to true */
             $('#' + self.prefix + '-deleted').val('1');
             /* hide the list item */
@@ -31,6 +34,7 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
         var self = {};
         var list = $('#' + opts.prefix + '-list');
         var countField = $('#' + opts.prefix + '-count');
+        /* NB countField includes deleted items; for the count of non-deleted items, use members.length */
         var members = [];
 
         self.getCount = function() {
@@ -45,9 +49,9 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
             /* Create the new list member element with a unique ID prefix, and append it to the list */
             var elem = $(template.replace(/__PREFIX__/g, newMemberPrefix));
             list.append(elem);
-            var sequenceMember = SequenceMember(newMemberPrefix);
+            var sequenceMember = SequenceMember(self, newMemberPrefix);
+            sequenceMember.setIndex(members.length);
             members.push(sequenceMember);
-            sequenceMember.setIndex(newIndex);
 
             if (opts.onInitializeMember) {
                 opts.onInitializeMember(sequenceMember, newMemberPrefix);
@@ -58,10 +62,20 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
 
             return sequenceMember;
         };
+        self.deleteMember = function(member) {
+            var index = member.getIndex();
+            /* reduce index numbers of subsequent members */
+            for (var i = index + 1; i < members.length; i++) {
+                members[i].setIndex(i - 1);
+            }
+            /* remove from the 'members' list */
+            members.splice(index, 1);
+            member._markDeleted();
+        };
 
         for (var i = 0; i < self.getCount(); i++) {
             var memberPrefix = opts.prefix + '-' + i;
-            var sequenceMember = SequenceMember(memberPrefix);
+            var sequenceMember = SequenceMember(self, memberPrefix);
             members[i] = sequenceMember;
             if (opts.onInitializeMember) {
                 opts.onInitializeMember(sequenceMember, memberPrefix);
