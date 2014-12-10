@@ -33,7 +33,7 @@
 
             /* initialize 'add' button */
             $('#' + elementPrefix + '-add').click(function() {
-                sequence.appendMember(listMemberTemplate);
+                sequence.insertMemberAtEnd(listMemberTemplate);
             });
         };
     };

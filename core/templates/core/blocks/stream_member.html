@@ -4,7 +4,10 @@
     <input type="hidden" id="{{ prefix }}-type" name="{{ prefix }}-type" value="{{ child.factory.name }}">
 {% endblock %}
 
-{% block controls %}
-    {% include "core/blocks/stream_menu.html" %}
+{% block header_controls %}
     <button id="{{ prefix }}-delete">delete</button>
+{% endblock %}
+
+{% block footer_controls %}
+    {% include "core/blocks/stream_menu.html" %}
 {% endblock %}

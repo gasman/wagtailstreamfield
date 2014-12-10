@@ -466,7 +466,7 @@ class StreamFactory(BlockFactory):
             'prefix': prefix,
             'list_members_html': list_members_html,
             'child_factories': self.child_factories,
-            'footer_menu_prefix': '%s-after' % prefix,
+            'header_menu_prefix': '%s-before' % prefix,
         })
 
 class StreamBlock(BlockOptions):

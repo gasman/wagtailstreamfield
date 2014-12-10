@@ -14,7 +14,7 @@ def home(request):
         ('title', TextInput(label='Title')),
         ('speakers', ListBlock(SpeakerBlock, label='Speakers')),
         ('content', StreamBlock([
-            ('heading', TextInput(label='Heading')),
+            ('heading', TextInput()),
             ('image', Chooser(label='Image'))
         ])),
     ])

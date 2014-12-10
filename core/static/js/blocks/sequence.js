@@ -18,6 +18,9 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
         self.prependMember = function(template) {
             sequence.insertMemberBefore(self, template);
         };
+        self.appendMember = function(template) {
+            sequence.insertMemberAfter(self, template);
+        };
         self._markDeleted = function() {
             /* set this list member's hidden 'deleted' flag to true */
             $('#' + self.prefix + '-deleted').val('1');
@@ -54,6 +57,17 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
             countField.val(newIndex + 1);
             return opts.prefix + '-' + newIndex;
         }
+        function postInsertMember(newMember) {
+            /* run any supplied initializer functions */
+            if (opts.onInitializeMember) {
+                opts.onInitializeMember(newMember);
+            }
+            if (opts.onInitializeNewMember) {
+                opts.onInitializeNewMember(newMember);
+            }
+
+            newMember._markAdded();
+        }
 
         self.insertMemberBefore = function(otherMember, template) {
             newMemberPrefix = getNewMemberPrefix();
@@ -65,47 +79,78 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
             var index = otherMember.getIndex();
 
             /* bump up index of otherMember and subsequent members */
-            for (var i = otherMember.getIndex(); i < members.length; i++) {
+            for (var i = index; i < members.length; i++) {
                 members[i].setIndex(i + 1);
             }
             members.splice(index, 0, newMember);
+            newMember.setIndex(index);
 
-            /* run any supplied initializer functions */
-            if (opts.onInitializeMember) {
-                opts.onInitializeMember(newMember);
-            }
-            if (opts.onInitializeNewMember) {
-                opts.onInitializeNewMember(newMember);
-            }
-
-            newMember._markAdded();
+            postInsertMember(newMember);
 
             return newMember;
         };
 
-        self.appendMember = function(template) {
+        self.insertMemberAfter = function(otherMember, template) {
             newMemberPrefix = getNewMemberPrefix();
 
             /* Create the new list member element with the real prefix substituted in */
             var elem = $(template.replace(/__PREFIX__/g, newMemberPrefix));
-
-            list.append(elem);
+            otherMember.container.after(elem);
             var newMember = SequenceMember(self, newMemberPrefix);
-            newMember.setIndex(members.length);
-            members.push(newMember);
+            var index = otherMember.getIndex() + 1;
 
-            /* run any supplied initializer functions */
-            if (opts.onInitializeMember) {
-                opts.onInitializeMember(newMember);
+            /* bump up index of subsequent members */
+            for (var i = index; i < members.length; i++) {
+                members[i].setIndex(i + 1);
             }
-            if (opts.onInitializeNewMember) {
-                opts.onInitializeNewMember(newMember);
-            }
+            members.splice(index, 0, newMember);
+            newMember.setIndex(index);
 
-            newMember._markAdded();
+            postInsertMember(newMember);
 
             return newMember;
         };
+
+        self.insertMemberAtStart = function(template) {
+            /* NB we can't just do
+                self.insertMemberBefore(members[0], template)
+            because that won't work for initially empty lists
+            */
+            newMemberPrefix = getNewMemberPrefix();
+
+            /* Create the new list member element with the real prefix substituted in */
+            var elem = $(template.replace(/__PREFIX__/g, newMemberPrefix));
+            list.prepend(elem);
+            var newMember = SequenceMember(self, newMemberPrefix);
+
+            /* bump up index of all other members */
+            for (var i = 0; i < members.length; i++) {
+                members[i].setIndex(i + 1);
+            }
+            members.unshift(newMember);
+            newMember.setIndex(0);
+
+            postInsertMember(newMember);
+
+            return newMember;
+        };
+
+        self.insertMemberAtEnd = function(template) {
+            newMemberPrefix = getNewMemberPrefix();
+
+            /* Create the new list member element with the real prefix substituted in */
+            var elem = $(template.replace(/__PREFIX__/g, newMemberPrefix));
+            list.append(elem);
+            var newMember = SequenceMember(self, newMemberPrefix);
+
+            newMember.setIndex(members.length);
+            members.push(newMember);
+
+            postInsertMember(newMember);
+
+            return newMember;
+        };
+
         self.deleteMember = function(member) {
             var index = member.getIndex();
             /* reduce index numbers of subsequent members */

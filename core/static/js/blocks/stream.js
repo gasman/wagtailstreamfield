@@ -32,14 +32,14 @@
                     });
 
                     /* initialize 'prepend new block' buttons */
-                    function initializePrependButton(childBlock) {
+                    function initializeAppendButton(childBlock) {
                         var template = listMemberTemplates[childBlock.name];
                         $('#' + sequenceMember.prefix + '-add-' + childBlock.name).click(function() {
-                            sequenceMember.prependMember(template);
+                            sequenceMember.appendMember(template);
                         });
                     }
                     for (var i = 0; i < opts.childBlocks.length; i++) {
-                        initializePrependButton(opts.childBlocks[i]);
+                        initializeAppendButton(opts.childBlocks[i]);
                     }
                 },
                 'onInitializeInitialMember': function(sequenceMember, index) {
@@ -52,15 +52,15 @@
                 }
             });
 
-            /* initialize footer menu */
-            function initializeAppendButton(childBlock) {
+            /* initialize header menu */
+            function initializePrependButton(childBlock) {
                 var template = listMemberTemplates[childBlock.name];
-                $('#' + elementPrefix + '-after-add-' + childBlock.name).click(function() {
-                    sequence.appendMember(template);
+                $('#' + elementPrefix + '-before-add-' + childBlock.name).click(function() {
+                    sequence.insertMemberAtStart(template);
                 });
             }
             for (var i = 0; i < opts.childBlocks.length; i++) {
-                initializeAppendButton(opts.childBlocks[i]);
+                initializePrependButton(opts.childBlocks[i]);
             }
         };
     };
