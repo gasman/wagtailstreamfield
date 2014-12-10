@@ -383,7 +383,7 @@ class StreamFactory(BlockFactory):
         self.child_factories_by_name = {}
 
         for (name, opts) in self.block_options.child_definitions:
-            prefix = "%s-def-%s" % (self.definition_prefix, name)
+            prefix = "%s-child-%s" % (self.definition_prefix, name)
             factory = opts.factory(opts, name=name, definition_prefix=prefix)
             self.child_factories.append(factory)
             self.child_factories_by_name[name] = factory
@@ -423,19 +423,34 @@ class StreamFactory(BlockFactory):
         return super(StreamFactory, self).media + Media(js=['js/blocks/stream.js'])
 
     def js_declaration(self):
-        child_js_declarations = {}
+        # compile a list of info dictionaries, one for each available block type
+        child_blocks = []
         for child_factory in self.child_factories:
+            # each info dictionary specifies at least a block name
+            child_block_info = {'name': "'%s'" % child_factory.name}
+
+            # if the child defines a JS initializer function, include that in the info dict
             child_js_declaration = child_factory.js_declaration()
             if child_js_declaration:
-                child_js_declarations[child_factory.name] = child_js_declaration
+                child_block_info['initializer'] = child_js_declaration
+                child_block_info['templateInitializerParam'] = child_factory.prototype_block().js_declaration_param()
+
+            child_blocks.append(indent(js_dict(child_block_info)))
 
         opts = {
             'definitionPrefix': "'%s'" % self.definition_prefix,
-            'childDeclarations': js_dict(child_js_declarations),
+            'childBlocks': '[\n%s\n]' % ',\n'.join(child_blocks),
         }
 
         return "StreamBlock(%s)" % js_dict(opts)
 
+    def js_declaration_param(self, value):
+        # Return value is an array of js_declaration_params, one for each child block in the list
+        child_params = [
+            indent(self.child_factories_by_name[child['type']].js_declaration_param(child['value']))
+            for child in value
+        ]
+        return '[\n%s\n]' % ',\n'.join(child_params)
 
     def render(self, value, prefix=''):
         list_members_html = [
@@ -447,6 +462,8 @@ class StreamFactory(BlockFactory):
             'label': self.label,
             'prefix': prefix,
             'list_members_html': list_members_html,
+            'child_factories': self.child_factories,
+            'footer_menu_prefix': '%s-after-add' % prefix,
         })
 
 class StreamBlock(BlockOptions):
