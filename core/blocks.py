@@ -303,7 +303,7 @@ class ListFactory(BlockFactory):
 
     @property
     def media(self):
-        return super(ListFactory, self).media + Media(js=['js/blocks/list.js'])
+        return super(ListFactory, self).media + Media(js=['js/blocks/sequence.js', 'js/blocks/list.js'])
 
     def render_list_member(self, value, prefix):
         """
@@ -419,7 +419,7 @@ class StreamFactory(BlockFactory):
 
     @property
     def media(self):
-        return super(StreamFactory, self).media + Media(js=['js/blocks/stream.js'])
+        return super(StreamFactory, self).media + Media(js=['js/blocks/sequence.js', 'js/blocks/stream.js'])
 
     def js_initializer(self):
         # compile a list of info dictionaries, one for each available block type

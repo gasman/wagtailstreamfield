@@ -21,12 +21,10 @@
                 blockOpts.initializer(childParam, listMemberPrefix + '-value');
             }
 
+            var sequenceMember = SequenceMember(listMemberPrefix);
             /* initialise delete button */
             $('#' + listMemberPrefix + '-delete').click(function() {
-                /* set this list member's hidden 'deleted' flag to true */
-                $('#' + listMemberPrefix + '-deleted').val('1');
-                /* hide the list item */
-                $('#' + listMemberPrefix + '-container').fadeOut();
+                sequenceMember.delete();
             });
         }
 
