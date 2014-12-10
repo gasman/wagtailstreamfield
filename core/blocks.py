@@ -33,14 +33,7 @@ class BlockOptions(object):
     def __init__(self, **kwargs):
         # standard options are 'label' and 'default'
         self.label = kwargs.get('label')
-
-        try:
-            self.default = kwargs['default']
-        except KeyError:
-            # subclasses are expected to set a default at the class level, so that if default
-            # is not passed in the constructor (NB this is distinct from passing default=None)
-            # then we'll revert to the block type's own default instead.
-            pass
+        self.default = kwargs.get('default', self.Meta.default)
 
 class BlockFactory(object):
     """
@@ -175,8 +168,9 @@ class TextInputFactory(BlockFactory):
             )
 
 class TextInput(BlockOptions):
-    factory = TextInputFactory
-    default = ''
+    class Meta:
+        factory = TextInputFactory
+        default = ''
 
 
 # =======
@@ -204,8 +198,9 @@ class ChooserFactory(BlockFactory):
             )
 
 class Chooser(BlockOptions):
-    factory = ChooserFactory
-    default = None
+    class Meta:
+        factory = ChooserFactory
+        default = None
 
 
 # ===========
@@ -220,7 +215,7 @@ class StructFactory(BlockFactory):
         self.child_factories_by_name = {}
         for (name, opts) in self.block_options.child_definitions:
             prefix = "%s-%s" % (self.definition_prefix, name)
-            factory = opts.factory(opts, name=name, definition_prefix=prefix)
+            factory = opts.Meta.factory(opts, name=name, definition_prefix=prefix)
             self.child_factories.append(factory)
             self.child_factories_by_name[name] = factory
 
@@ -283,12 +278,13 @@ class StructBlock(BlockOptions):
         super(StructBlock, self).__init__(**kwargs)
         self.child_definitions = [
             # convert child definitions to instances if they've been passed as classes
-            (child_def() if isinstance(child_def, type) else child_def)
-            for child_def in child_definitions
+            (name, child_def() if isinstance(child_def, type) else child_def)
+            for (name, child_def) in child_definitions
         ]
 
-    factory = StructFactory
-    default = {}
+    class Meta:
+        factory = StructFactory
+        default = {}
 
 
 # =========
@@ -300,7 +296,7 @@ class ListFactory(BlockFactory):
         super(ListFactory, self).__init__(*args, **kwargs)
 
         child_block_options = self.block_options.child_block_options
-        self.child_factory = child_block_options.factory(child_block_options,
+        self.child_factory = child_block_options.Meta.factory(child_block_options,
             definition_prefix=self.definition_prefix + '-child')
         self.child_js_initializer = self.child_factory.js_initializer()
         self.dependencies = [self.child_factory]
@@ -375,8 +371,9 @@ class ListBlock(BlockOptions):
         else:
             self.child_block_options = child_block_options
 
-    factory = ListFactory
-    default = []
+    class Meta:
+        factory = ListFactory
+        default = []
 
 
 # ===========
@@ -392,7 +389,7 @@ class StreamFactory(BlockFactory):
 
         for (name, opts) in self.block_options.child_definitions:
             prefix = "%s-child-%s" % (self.definition_prefix, name)
-            factory = opts.factory(opts, name=name, definition_prefix=prefix)
+            factory = opts.Meta.factory(opts, name=name, definition_prefix=prefix)
             self.child_factories.append(factory)
             self.child_factories_by_name[name] = factory
 
@@ -482,9 +479,10 @@ class StreamBlock(BlockOptions):
         super(StreamBlock, self).__init__(**kwargs)
         self.child_definitions = [
             # convert child definitions to instances if they've been passed as classes
-            (child_def() if isinstance(child_def, type) else child_def)
-            for child_def in child_definitions
+            (name, child_def() if isinstance(child_def, type) else child_def)
+            for (name, child_def) in child_definitions
         ]
 
-    factory = StreamFactory
-    default = []
+    class Meta:
+        factory = StreamFactory
+        default = []

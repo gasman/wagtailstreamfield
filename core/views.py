@@ -34,7 +34,7 @@ def home(request):
         ],
     }
 
-    page_factory = page_def.factory(page_def, definition_prefix='def')
+    page_factory = page_def.Meta.factory(page_def, definition_prefix='def')
     page = page_factory.bind(page_data, prefix='page')
 
     return render(request, 'core/home.html', {
