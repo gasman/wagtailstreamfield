@@ -305,7 +305,7 @@ class ListFactory(BlockFactory):
     def media(self):
         return super(ListFactory, self).media + Media(js=['js/blocks/sequence.js', 'js/blocks/list.js'])
 
-    def render_list_member(self, value, prefix):
+    def render_list_member(self, value, prefix, index):
         """
         Render the HTML for a single list item. This consists of an <li> wrapper, hidden fields
         to manage ID/deleted state, delete/reorder buttons, and the child block's own HTML.
@@ -313,7 +313,8 @@ class ListFactory(BlockFactory):
         child = self.child_factory.bind(value, prefix="%s-value" % prefix)
         return render_to_string('core/blocks/list_member.html', {
             'prefix': prefix,
-            'child': child
+            'child': child,
+            'index': index,
         })
 
     def html_declarations(self):
@@ -321,7 +322,7 @@ class ListFactory(BlockFactory):
         # this is the output of render_list_member as rendered with the prefix '__PREFIX__'
         # (to be replaced dynamically when adding the new item) and the child block's default value
         # as its value.
-        list_member_html = self.render_list_member(self.child_factory.default, '__PREFIX__')
+        list_member_html = self.render_list_member(self.child_factory.default, '__PREFIX__', '')
 
         template_declaration = format_html(
             '<script type="text/template" id="{0}-newmember">{1}</script>',
@@ -351,7 +352,7 @@ class ListFactory(BlockFactory):
 
     def render(self, value, prefix=''):
         list_members_html = [
-            self.render_list_member(child_val, "%s-%d" % (prefix, i))
+            self.render_list_member(child_val, "%s-%d" % (prefix, i), i)
             for (i, child_val) in enumerate(value)
         ]
 
@@ -389,7 +390,7 @@ class StreamFactory(BlockFactory):
 
         self.dependencies = self.child_factories
 
-    def render_list_member(self, block_type_name, value, prefix):
+    def render_list_member(self, block_type_name, value, prefix, index):
         """
         Render the HTML for a single list item. This consists of an <li> wrapper, hidden fields
         to manage ID/deleted state/type, delete/reorder buttons, and the child block's own HTML.
@@ -400,7 +401,8 @@ class StreamFactory(BlockFactory):
             'child_factories': self.child_factories,
             'block_type_name': block_type_name,
             'prefix': prefix,
-            'child': child
+            'child': child,
+            'index': index,
         })
 
     def html_declarations(self):
@@ -410,7 +412,7 @@ class StreamFactory(BlockFactory):
                 (
                     self.definition_prefix,
                     child_factory.name,
-                    self.render_list_member(child_factory.name, child_factory.default, '__PREFIX__')
+                    self.render_list_member(child_factory.name, child_factory.default, '__PREFIX__', '')
                 )
                 for child_factory in self.child_factories
             ]
@@ -455,7 +457,7 @@ class StreamFactory(BlockFactory):
 
     def render(self, value, prefix=''):
         list_members_html = [
-            self.render_list_member(member['type'], member['value'], "%s-%d" % (prefix, i))
+            self.render_list_member(member['type'], member['value'], "%s-%d" % (prefix, i), i)
             for (i, member) in enumerate(value)
         ]
 

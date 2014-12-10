@@ -1,5 +1,6 @@
 <li id="{{ prefix }}-container">
     <input type="hidden" id="{{ prefix }}-deleted" name="{{ prefix }}-deleted" value="">
+    <input type="hidden" id="{{ prefix }}-order" name="{{ prefix }}-order" value="{{ index }}">
     {% block hidden_fields %}{% endblock %}
     {% block controls %}{% endblock %}
     <div>{{ child.render }}</div>

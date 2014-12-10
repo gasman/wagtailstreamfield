@@ -7,41 +7,33 @@
         */
         var listMemberTemplate = $('#' + opts.definitionPrefix + '-newmember').text();
 
-        function initListMember(childParam, listMemberPrefix) {
-            /* run childInitializer if one has been supplied */
-            if (opts.childInitializer) {
-                /* the child block's own elements have the prefix '{list member prefix}-value' */
-                opts.childInitializer(childParam, listMemberPrefix + '-value');
-            }
-
-            var sequenceMember = SequenceMember(listMemberPrefix);
-            /* initialise delete button */
-            $('#' + listMemberPrefix + '-delete').click(function() {
-                sequenceMember.delete();
-            });
-        }
-
         return function(childParams, elementPrefix) {
-            var countField = $('#' + elementPrefix + '-count');
-            var initialChildCount = parseInt(countField.val(), 10);
-            var list = $('#' + elementPrefix + '-list');
+            var sequence = Sequence({
+                'prefix': elementPrefix,
+                'onInitializeMember': function(sequenceMember, memberPrefix) {
+                    /* code to be run on initializing each element, regardless of whether it's part of the
+                    initial list or being added dynamically */
 
-            /* initialise children */
-            for (var i = 0; i < initialChildCount; i++) {
-                initListMember(childParams[i], elementPrefix + '-' + i);
-            }
+                    /* initialise delete button */
+                    $('#' + memberPrefix + '-delete').click(function() {
+                        sequenceMember.delete();
+                    });
+                },
+                'onInitializeNewMember': function(sequenceMember, memberPrefix) {
+                    if (opts.childInitializer) {
+                        opts.childInitializer(opts.templateChildParam, memberPrefix + '-value');
+                    }
+                },
+                'onInitializeInitialMember': function(sequenceMember, memberPrefix, index) {
+                    if (opts.childInitializer) {
+                        opts.childInitializer(childParams[index], memberPrefix + '-value');
+                    }
+                }
+            });
 
-            /* initialise 'add' button */
+            /* initialize 'add' button */
             $('#' + elementPrefix + '-add').click(function() {
-                /* Update the counter and use it to create a prefix for the new list member */
-                var newIndex = parseInt(countField.val(), 10);
-                countField.val(newIndex + 1);
-                var newListMemberPrefix = elementPrefix + '-' + newIndex;
-
-                /* Create the new list member element with a unique ID prefix, and append it to the list */
-                var elem = $(listMemberTemplate.replace(/__PREFIX__/g, newListMemberPrefix));
-                list.append(elem);
-                initListMember(opts.templateChildParam, newListMemberPrefix);
+                sequence.appendMember(listMemberTemplate);
             });
         };
     };

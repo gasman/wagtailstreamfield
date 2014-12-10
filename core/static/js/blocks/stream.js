@@ -20,17 +20,18 @@
                 /* the child block's own elements have the prefix '{list member prefix}-value' */
                 blockOpts.initializer(childParam, listMemberPrefix + '-value');
             }
-
-            var sequenceMember = SequenceMember(listMemberPrefix);
-            /* initialise delete button */
-            $('#' + listMemberPrefix + '-delete').click(function() {
-                sequenceMember.delete();
-            });
         }
 
         return function(childParams, elementPrefix) {
-            var countField = $('#' + elementPrefix + '-count');
-            var list = $('#' + elementPrefix + '-list');
+            var sequence = Sequence({
+                'prefix': elementPrefix,
+                'onInitializeMember': function(sequenceMember, memberPrefix) {
+                    /* initialise delete button */
+                    $('#' + memberPrefix + '-delete').click(function() {
+                        sequenceMember.delete();
+                    });
+                }
+            });
 
             /* initialise children */
             for (var i = 0; i < childParams.length; i++) {
