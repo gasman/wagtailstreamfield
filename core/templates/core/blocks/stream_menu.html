@@ -1,5 +1,5 @@
 <ul class="stream-menu">
     {% for child_factory in child_factories %}
-        <li style="display: inline;"><button id="{{ prefix }}-add-{{ child_factory.name }}">{{ child_factory.name }}</button></li>
+        <li style="display: inline;"><button type="button" id="{{ prefix }}-add-{{ child_factory.name }}">{{ child_factory.name }}</button></li>
     {% endfor %}
 </ul>

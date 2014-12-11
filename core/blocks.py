@@ -122,7 +122,10 @@ class BlockFactory(object):
         """
         Render the HTML for this block with 'value' as its content.
         """
-        raise NotImplemented
+        raise NotImplementedError('%s.render' % self.__class__)
+
+    def value_from_datadict(self, data, files, prefix):
+        raise NotImplementedError('%s.value_from_datadict' % self.__class__)
 
     def bind(self, value, prefix):
         """
@@ -173,6 +176,9 @@ class TextInputFactory(BlockFactory):
                 prefix=prefix, label=self.label, value=value
             )
 
+    def value_from_datadict(self, data, files, prefix):
+        return data.get(prefix, '')
+
 class TextInput(BlockOptions):
     class Meta:
         factory = TextInputFactory
@@ -195,6 +201,9 @@ class FieldFactory(BlockFactory):
             )
         else:
             return widget_html
+
+    def value_from_datadict(self, data, files, prefix):
+        return self.block_options.field.widget.value_from_datadict(data, files, prefix)
 
 class FieldBlock(BlockOptions):
     def __init__(self, field, **kwargs):
@@ -228,6 +237,9 @@ class ChooserFactory(BlockFactory):
                 """<input type="button" id="{prefix}-button" value="Choose a thing">""",
                 prefix=prefix
             )
+
+    def value_from_datadict(self, data, files, prefix):
+        return 123
 
 class Chooser(BlockOptions):
     class Meta:
@@ -304,6 +316,12 @@ class StructFactory(BlockFactory):
             return format_html("<label>{0}</label> <ul>{1}</ul>", self.label, list_items)
         else:
             return format_html("<ul>{0}</ul>", list_items)
+
+    def value_from_datadict(self, data, files, prefix):
+        return dict([
+            (factory.name, factory.value_from_datadict(data, files, '%s-%s' % (prefix, factory.name)))
+            for factory in self.child_factories
+        ])
 
 class InheritableBlockOptions(BlockOptions):
     """A special case of BlockOptions as used by StructBlock and StreamBlock where child_definitions
@@ -406,6 +424,23 @@ class ListFactory(BlockFactory):
             'prefix': prefix,
             'list_members_html': list_members_html,
         })
+
+    def value_from_datadict(self, data, files, prefix):
+        count = int(data['%s-count' % prefix])
+        values_with_indexes = []
+        for i in range(0, count):
+            if data['%s-%d-deleted' % (prefix, i)]:
+                pass
+            values_with_indexes.append(
+                (
+                    data['%s-%d-order' % (prefix, i)],
+                    self.child_factory.value_from_datadict(data, files, '%s-%d-value' % (prefix, i))
+                )
+            )
+
+        values_with_indexes.sort()
+        return [v for (i, v) in values_with_indexes]
+
 
 class ListBlock(BlockOptions):
     def __init__(self, child_block_options, **kwargs):
@@ -518,6 +553,26 @@ class StreamFactory(BlockFactory):
             'child_factories': self.child_factories,
             'header_menu_prefix': '%s-before' % prefix,
         })
+
+    def value_from_datadict(self, data, files, prefix):
+        count = int(data['%s-count' % prefix])
+        values_with_indexes = []
+        for i in range(0, count):
+            if data['%s-%d-deleted' % (prefix, i)]:
+                pass
+            block_type_name = data['%s-%d-type' % (prefix, i)]
+            child_factory = self.child_factories_by_name[block_type_name]
+
+            values_with_indexes.append(
+                (
+                    data['%s-%d-order' % (prefix, i)],
+                    block_type_name,
+                    child_factory.value_from_datadict(data, files, '%s-%d-value' % (prefix, i))
+                )
+            )
+
+        values_with_indexes.sort()
+        return [{'type': t, 'value': v} for (i, t, v) in values_with_indexes]
 
 class StreamBlock(InheritableBlockOptions):
     class Meta:

@@ -20,6 +20,10 @@ pageInitializer({{ page.js_initializer_param|safe }}, 'page');
         {% endwith %}
     </head>
     <body>
-        {{ page.render }}
+        <form action="." method="POST">
+            {% csrf_token %}
+            {{ page.render }}
+            <input type="submit">
+        </form>
     </body>
 </html>

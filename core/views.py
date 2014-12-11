@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django import forms
+from django.http import HttpResponse
 
 from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock, FieldBlock
 
@@ -40,11 +41,17 @@ def home(request):
     }
 
     page_factory = page_def.Meta.factory(page_def, definition_prefix='def')
-    page = page_factory.bind(page_data, prefix='page')
 
-    return render(request, 'core/home.html', {
-        'media': page_factory.media,
-        'declarations': page_factory.html_declarations(),
-        'initializer': page_factory.js_initializer(),
-        'page': page,
-    })
+    if request.method == 'POST':
+        return HttpResponse(
+            repr(page_factory.value_from_datadict(request.POST, request.FILES, 'page')), mimetype="text/plain")
+    else:
+
+        page = page_factory.bind(page_data, prefix='page')
+
+        return render(request, 'core/home.html', {
+            'media': page_factory.media,
+            'declarations': page_factory.html_declarations(),
+            'initializer': page_factory.js_initializer(),
+            'page': page,
+        })
