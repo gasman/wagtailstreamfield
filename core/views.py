@@ -1,6 +1,7 @@
 from django.shortcuts import render
+from django import forms
 
-from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock
+from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock, FieldBlock
 
 class SpeakerBlock(StructBlock):
     name = TextInput(label='Full name')
@@ -17,7 +18,7 @@ class ContentBlock(StreamBlock):
 
 def home(request):
     page_def = StructBlock([
-        ('title', TextInput(label='Title')),
+        ('title', FieldBlock(forms.CharField(), label='Title')),
         ('speakers', ListBlock(SpeakerBlock(), label='Speakers')),
         ('content', ContentBlock([
             ('speaker', SpeakerBlock([('another_specialist_subject', TextInput)], label='Featured speaker')),

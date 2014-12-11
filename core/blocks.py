@@ -1,4 +1,5 @@
 import re
+from collections import OrderedDict
 
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
@@ -177,6 +178,32 @@ class TextInput(BlockOptions):
         factory = TextInputFactory
         default = ''
 
+
+# ===========
+# Field block
+# ===========
+
+class FieldFactory(BlockFactory):
+    def render(self, value, prefix=''):
+        widget = self.block_options.field.widget
+
+        widget_html = widget.render(prefix, value, {'id': prefix})
+        if self.label:
+            return format_html(
+                """<label for={label_id}>{label}</label> {widget_html}""",
+                label_id=widget.id_for_label(prefix), label=self.label, widget_html=widget_html
+            )
+        else:
+            return widget_html
+
+class FieldBlock(BlockOptions):
+    def __init__(self, field, **kwargs):
+        super(FieldBlock, self).__init__(**kwargs)
+        self.field = field
+
+    class Meta:
+        factory = FieldFactory
+        default = None
 
 # =======
 # Chooser
