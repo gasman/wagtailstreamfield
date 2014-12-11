@@ -1,37 +1,30 @@
 from django import forms
-from django.utils.html import format_html_join
+from django.utils.html import format_html
+
+from collections import OrderedDict
 
 class StructWidget(forms.Widget):
-    def __init__(self, widgets, **kwargs):
+    def __init__(self, form_class, **kwargs):
         super(StructWidget, self).__init__(**kwargs)
-        self.widgets = widgets
+        self.form_class = form_class
 
     def render(self, name, value, attrs=None):
-        final_attrs = self.build_attrs(attrs)
+        form = self.form_class(initial=value, prefix=name)
+        return format_html('<ul>{0}</ul>', form.as_ul())
 
-        return format_html_join('\n', '<div class="subfield">{0}</div>', [
-            (
-                child_widget.render(
-                    '%s-%s' % (name, child_name),
-                    value[child_name],
-                    {'id': '%s-%s' % (final_attrs['id'], child_name)}
-                ),
-            )
-            for (child_name, child_widget) in self.widgets
-        ])
+    # def id_for_label(self, id_):
+    #     try:
+    #         (name, field) = self.form_class.base_fields.items()[0]
+    #     except IndexError:
+    #         return None
 
-    def id_for_label(self, id_):
-        try:
-            (child_name, child_widget) = self.widgets[0]
-        except IndexError:
-            return None
-
-        return child_widget.id_for_label("%s-%s" % (id_, child_name))
+    #     return field.widget.id_for_label("%s-%s" % (id_, name))
 
 class StructField(forms.Field):
     def __init__(self, fields, **kwargs):
+        # Create a subclass of BaseForm with a base_fields list formed of the passed fields
+        form_class = type('StructFieldForm', (forms.BaseForm,), {'base_fields': OrderedDict(fields)})
+
         if 'widget' not in kwargs:
-            kwargs['widget'] = StructWidget(
-                [(name, field.widget) for (name, field) in fields]
-            )
+            kwargs['widget'] = StructWidget(form_class)
         super(StructField, self).__init__(**kwargs)
