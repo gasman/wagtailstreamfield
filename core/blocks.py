@@ -464,26 +464,25 @@ class StreamFactory(BlockFactory):
     def __init__(self, *args, **kwargs):
         super(StreamFactory, self).__init__(*args, **kwargs)
 
-        self.child_factories = []
-        self.child_factories_by_name = {}
+        self.child_factories = OrderedDict([
+            (
+                name,
+                opts.Meta.factory(opts, name=name, definition_prefix="%s-child-%s" % (self.definition_prefix, name))
+            )
+            for name, opts in self.block_options.child_definitions
+        ])
 
-        for (name, opts) in self.block_options.child_definitions:
-            prefix = "%s-child-%s" % (self.definition_prefix, name)
-            factory = opts.Meta.factory(opts, name=name, definition_prefix=prefix)
-            self.child_factories.append(factory)
-            self.child_factories_by_name[name] = factory
-
-        self.dependencies = self.child_factories
+        self.dependencies = self.child_factories.values()
 
     def render_list_member(self, block_type_name, value, prefix, index):
         """
         Render the HTML for a single list item. This consists of an <li> wrapper, hidden fields
         to manage ID/deleted state/type, delete/reorder buttons, and the child block's own HTML.
         """
-        child_factory = self.child_factories_by_name[block_type_name]
+        child_factory = self.child_factories[block_type_name]
         child = child_factory.bind(value, prefix="%s-value" % prefix)
         return render_to_string('core/blocks/stream_member.html', {
-            'child_factories': self.child_factories,
+            'child_factories': self.child_factories.values(),
             'block_type_name': block_type_name,
             'prefix': prefix,
             'child': child,
@@ -496,10 +495,10 @@ class StreamFactory(BlockFactory):
             [
                 (
                     self.definition_prefix,
-                    child_factory.name,
-                    self.render_list_member(child_factory.name, child_factory.default, '__PREFIX__', '')
+                    name,
+                    self.render_list_member(name, child_factory.default, '__PREFIX__', '')
                 )
-                for child_factory in self.child_factories
+                for name, child_factory in self.child_factories.items()
             ]
         )
         return mark_safe(super(StreamFactory, self).html_declarations() + template_declarations)
@@ -511,9 +510,9 @@ class StreamFactory(BlockFactory):
     def js_initializer(self):
         # compile a list of info dictionaries, one for each available block type
         child_blocks = []
-        for child_factory in self.child_factories:
+        for name, child_factory in self.child_factories.items():
             # each info dictionary specifies at least a block name
-            child_block_info = {'name': "'%s'" % child_factory.name}
+            child_block_info = {'name': "'%s'" % name}
 
             # if the child defines a JS initializer function, include that in the info dict
             # along with the param that needs to be passed to it for initializing an empty/default block
@@ -535,7 +534,7 @@ class StreamFactory(BlockFactory):
     def js_initializer_param(self, value):
         # Return value is an array of js_initializer_params, one for each child block in the list
         child_params = [
-            indent(self.child_factories_by_name[child['type']].js_initializer_param(child['value']))
+            indent(self.child_factories[child['type']].js_initializer_param(child['value']))
             for child in value
         ]
         return '[\n%s\n]' % ',\n'.join(child_params)
@@ -550,7 +549,7 @@ class StreamFactory(BlockFactory):
             'label': self.label,
             'prefix': prefix,
             'list_members_html': list_members_html,
-            'child_factories': self.child_factories,
+            'child_factories': self.child_factories.values(),
             'header_menu_prefix': '%s-before' % prefix,
         })
 
@@ -561,7 +560,7 @@ class StreamFactory(BlockFactory):
             if data['%s-%d-deleted' % (prefix, i)]:
                 pass
             block_type_name = data['%s-%d-type' % (prefix, i)]
-            child_factory = self.child_factories_by_name[block_type_name]
+            child_factory = self.child_factories[block_type_name]
 
             values_with_indexes.append(
                 (
