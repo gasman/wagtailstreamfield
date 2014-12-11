@@ -2,12 +2,13 @@ from django.shortcuts import render
 from django import forms
 
 from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock, FieldBlock
+from core.fields import StructField
 
 class SpeakerBlock(StructBlock):
-    name = StructBlock([
-        ('first_name', FieldBlock(forms.CharField())),
-        ('surname', FieldBlock(forms.CharField())),
-    ])
+    name = FieldBlock(StructField([
+        ('first_name', forms.CharField()),
+        ('surname', forms.CharField()),
+    ]))
     job_title = TextInput(default="just this guy, y'know?")
     nicknames = ListBlock(TextInput)
     image = Chooser()
