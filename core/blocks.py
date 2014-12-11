@@ -255,28 +255,28 @@ class StructFactory(BlockFactory):
     def __init__(self, *args, **kwargs):
         super(StructFactory, self).__init__(*args, **kwargs)
 
-        self.child_factories = []
-        self.child_factories_by_name = {}
-        for (name, opts) in self.block_options.child_definitions:
-            prefix = "%s-%s" % (self.definition_prefix, name)
-            factory = opts.Meta.factory(opts, name=name, definition_prefix=prefix)
-            self.child_factories.append(factory)
-            self.child_factories_by_name[name] = factory
+        self.child_factories = OrderedDict([
+            (
+                name,
+                opts.Meta.factory(opts, name=name, definition_prefix="%s-%s" % (self.definition_prefix, name))
+            )
+            for name, opts in self.block_options.child_definitions
+        ])
 
-        self.child_js_initializers_by_name = {}
-        for factory in self.child_factories:
+        self.child_js_initializers = {}
+        for (name, factory) in self.child_factories.items():
             js_initializer = factory.js_initializer()
             if js_initializer is not None:
-                self.child_js_initializers_by_name[factory.name] = js_initializer
+                self.child_js_initializers[name] = js_initializer
 
-        self.dependencies = self.child_factories
+        self.dependencies = self.child_factories.values()
 
     def js_initializer(self):
         # skip JS setup entirely if no children have js_initializers
-        if not self.child_js_initializers_by_name:
+        if not self.child_js_initializers:
             return None
 
-        return "StructBlock(%s)" % js_dict(self.child_js_initializers_by_name)
+        return "StructBlock(%s)" % js_dict(self.child_js_initializers)
 
     def js_initializer_param(self, value):
         # Return value should be a mapping:
@@ -288,8 +288,8 @@ class StructFactory(BlockFactory):
 
         child_params = {}
 
-        for child_name in self.child_js_initializers_by_name.keys():
-            factory = self.child_factories_by_name[child_name]
+        for child_name in self.child_js_initializers.keys():
+            factory = self.child_factories[child_name]
             child_value = value.get(child_name, factory.default)
             child_params[child_name] = factory.js_initializer_param(child_value)
 
@@ -302,9 +302,9 @@ class StructFactory(BlockFactory):
     def render(self, value, prefix=''):
         child_renderings = [
             factory.render(
-                value.get(factory.name, factory.default), prefix="%s-%s" % (prefix, factory.name)
+                value.get(name, factory.default), prefix="%s-%s" % (prefix, name)
             )
-            for factory in self.child_factories
+            for name, factory in self.child_factories.items()
         ]
 
         list_items = format_html_join('\n', "<li>{0}</li>", [
@@ -319,8 +319,8 @@ class StructFactory(BlockFactory):
 
     def value_from_datadict(self, data, files, prefix):
         return dict([
-            (factory.name, factory.value_from_datadict(data, files, '%s-%s' % (prefix, factory.name)))
-            for factory in self.child_factories
+            (name, factory.value_from_datadict(data, files, '%s-%s' % (prefix, name)))
+            for name, factory in self.child_factories.items()
         ])
 
 class InheritableBlockOptions(BlockOptions):
