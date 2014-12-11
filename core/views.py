@@ -3,8 +3,12 @@ from django import forms
 
 from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock, FieldBlock
 
+class NameBlock(StructBlock):
+    first_name = FieldBlock(forms.CharField())
+    surname = FieldBlock(forms.CharField())
+
 class SpeakerBlock(StructBlock):
-    name = TextInput(label='Full name')
+    name = NameBlock()
     job_title = TextInput(default="just this guy, y'know?")
     nicknames = ListBlock(TextInput)
     image = Chooser()
@@ -28,8 +32,8 @@ def home(request):
     page_data = {
         'title': 'My lovely event',
         'speakers': [
-            {'name': 'Tim Berners-Lee', 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
-            {'name': 'Bono', 'job_title': 'Singer'},
+            {'name': {'first_name': 'Tim', 'surname': 'Berners-Lee'}, 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
+            {'name': {'first_name': 'Bono', 'surname': 'Farquharson'}, 'job_title': 'Singer'},
         ],
         'content': [
             {'type': 'heading', 'value': "The largest event for the things that the event is about!"},
