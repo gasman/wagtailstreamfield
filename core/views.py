@@ -3,12 +3,11 @@ from django import forms
 
 from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock, FieldBlock
 
-class NameBlock(StructBlock):
-    first_name = FieldBlock(forms.CharField())
-    surname = FieldBlock(forms.CharField())
-
 class SpeakerBlock(StructBlock):
-    name = NameBlock()
+    name = StructBlock([
+        ('first_name', FieldBlock(forms.CharField())),
+        ('surname', FieldBlock(forms.CharField())),
+    ])
     job_title = TextInput(default="just this guy, y'know?")
     nicknames = ListBlock(TextInput)
     image = Chooser()
