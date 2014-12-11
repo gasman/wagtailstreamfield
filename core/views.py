@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django import forms
+from django.http import HttpResponse
 
 from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock, FieldBlock
 from core.fields import StructField
@@ -51,4 +52,24 @@ def home(request):
         'declarations': page_factory.html_declarations(),
         'initializer': page_factory.js_initializer(),
         'page': page,
+    })
+
+
+class PersonForm(forms.Form):
+    name = StructField([
+        ('first_name', forms.CharField()),
+        ('surname', forms.CharField()),
+    ])
+    job_title = forms.CharField()
+
+def formtest(request):
+    if request.method == 'POST':
+        form = PersonForm(request.POST)
+        if form.is_valid():
+            return HttpResponse(repr(form.cleaned_data), mimetype='text/plain')
+    else:
+        form = PersonForm()
+
+    return render(request, 'core/formtest.html', {
+        'form': form
     })
