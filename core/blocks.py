@@ -52,17 +52,20 @@ class BlockFactory(object):
     """
     dependencies = []
 
-    def __init__(self, block_options, name=None, definition_prefix=''):
+    def __init__(self, block_options, definition_prefix=''):
         self.block_options = block_options
-        self.name = name
         self.definition_prefix = definition_prefix
 
         self.default = self.block_options.default
 
-        # Try to get a field label from block_options, or failing that, generate one from name
         self.label = getattr(block_options, 'label', None)
-        if self.label is None and self.name is not None:
-            self.label = capfirst(self.name.replace('_', ' '))
+
+    def set_name(self, name):
+        self.name = name
+
+        # if we don't have a label already, generate one from name
+        if self.label is None:
+            self.label = capfirst(name.replace('_', ' '))
 
     @property
     def media(self):
@@ -255,16 +258,13 @@ class StructFactory(BlockFactory):
     def __init__(self, *args, **kwargs):
         super(StructFactory, self).__init__(*args, **kwargs)
 
-        self.child_factories = OrderedDict([
-            (
-                name,
-                opts.Meta.factory(opts, name=name, definition_prefix="%s-%s" % (self.definition_prefix, name))
-            )
-            for name, opts in self.block_options.child_definitions
-        ])
-
+        self.child_factories = OrderedDict()
         self.child_js_initializers = {}
-        for (name, factory) in self.child_factories.items():
+        for name, opts in self.block_options.child_definitions:
+            factory = opts.Meta.factory(opts, definition_prefix="%s-%s" % (self.definition_prefix, name))
+            factory.set_name(name)
+            self.child_factories[name] = factory
+
             js_initializer = factory.js_initializer()
             if js_initializer is not None:
                 self.child_js_initializers[name] = js_initializer
@@ -464,13 +464,11 @@ class StreamFactory(BlockFactory):
     def __init__(self, *args, **kwargs):
         super(StreamFactory, self).__init__(*args, **kwargs)
 
-        self.child_factories = OrderedDict([
-            (
-                name,
-                opts.Meta.factory(opts, name=name, definition_prefix="%s-child-%s" % (self.definition_prefix, name))
-            )
-            for name, opts in self.block_options.child_definitions
-        ])
+        self.child_factories = OrderedDict()
+        for name, opts in self.block_options.child_definitions:
+            factory = opts.Meta.factory(opts, definition_prefix="%s-child-%s" % (self.definition_prefix, name))
+            factory.set_name(name)
+            self.child_factories[name] = factory
 
         self.dependencies = self.child_factories.values()
 
