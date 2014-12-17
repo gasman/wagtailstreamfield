@@ -52,8 +52,8 @@ def home(request):
         page = page_factory.bind(page_data, prefix='page')
 
         return render(request, 'core/home.html', {
-            'media': page_factory.media,
-            'declarations': page_factory.html_declarations(),
+            'media': page_factory.all_media(),
+            'html_declarations': page_factory.all_html_declarations(),
             'initializer': page_factory.js_initializer(),
             'page': page,
         })

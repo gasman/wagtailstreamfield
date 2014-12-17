@@ -2,8 +2,8 @@
 <html>
     <head>
         <script src="{{ STATIC_URL }}js/jquery-1.9.1.js"></script>
-        {{ page.factory.media }}
-        {{ page.factory.html_declarations }}
+        {{ media }}
+        {{ html_declarations }}
 
         {% with page.factory.js_initializer as js_initializer %}
             {% if js_initializer %}

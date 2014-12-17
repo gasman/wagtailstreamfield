@@ -45,7 +45,27 @@ class BlockFactory(object):
     the base 'media' and 'html_declarations' methods will return those declarations; the outer block type can
     then add its own declarations to the list by overriding those methods and using super().
     """
-    dependencies = []
+    dependencies = set()
+
+    def all_blocks(self):
+        """
+        Return a set consisting of self and all block objects that are direct or indirect dependencies
+        of this block
+        """
+        result = set([self])
+        for dep in self.dependencies:
+            result |= dep.all_blocks()
+        return result
+
+    def all_media(self):
+        media = Media()
+        for block in self.all_blocks():
+            media += block.media
+        return media
+
+    def all_html_declarations(self):
+        declarations = filter(bool, [block.html_declarations() for block in self.all_blocks()])
+        return mark_safe('\n'.join(declarations))
 
     def __init__(self, **kwargs):
         if 'default' in kwargs:
@@ -66,10 +86,7 @@ class BlockFactory(object):
 
     @property
     def media(self):
-        media = Media()
-        for dep in self.dependencies:
-            media += dep.media
-        return media
+        return Media()
 
     def html_declarations(self):
         """
@@ -85,10 +102,7 @@ class BlockFactory(object):
         (More precisely, they must either be definition_prefix itself, or begin with definition_prefix
         followed by a '-' character)
         """
-        return format_html_join('\n', '{0}', [
-            (dep.html_declarations(),)
-            for dep in self.dependencies
-        ])
+        return ''
 
     def js_initializer(self):
         """
@@ -229,7 +243,7 @@ class ChooserFactory(BlockFactory):
 
     @property
     def media(self):
-        return super(ChooserFactory, self).media + Media(js=['js/blocks/chooser.js'])
+        return Media(js=['js/blocks/chooser.js'])
 
     def js_initializer(self):
         return "Chooser('%s')" % self.definition_prefix
@@ -274,7 +288,7 @@ class StructFactory(BlockFactory):
             if js_initializer is not None:
                 self.child_js_initializers[name] = js_initializer
 
-        self.dependencies = self.child_factories.values()
+        self.dependencies = set(self.child_factories.values())
 
     def js_initializer(self):
         # skip JS setup entirely if no children have js_initializers
@@ -302,7 +316,7 @@ class StructFactory(BlockFactory):
 
     @property
     def media(self):
-        return super(StructFactory, self).media + Media(js=['js/blocks/struct.js'])
+        return Media(js=['js/blocks/struct.js'])
 
     def render(self, value, prefix=''):
         child_renderings = [
@@ -365,12 +379,12 @@ class ListFactory(BlockFactory):
         super(ListFactory, self).__init__(**kwargs)
 
         self.child_factory = block_options.child_factory
-        self.dependencies = [self.child_factory]
+        self.dependencies = set([self.child_factory])
         self.child_js_initializer = self.child_factory.js_initializer()
 
     @property
     def media(self):
-        return super(ListFactory, self).media + Media(js=['js/blocks/sequence.js', 'js/blocks/list.js'])
+        return Media(js=['js/blocks/sequence.js', 'js/blocks/list.js'])
 
     def render_list_member(self, value, prefix, index):
         """
@@ -391,11 +405,10 @@ class ListFactory(BlockFactory):
         # as its value.
         list_member_html = self.render_list_member(self.child_factory.default, '__PREFIX__', '')
 
-        template_declaration = format_html(
+        return format_html(
             '<script type="text/template" id="{0}-newmember">{1}</script>',
             self.definition_prefix, list_member_html
         )
-        return mark_safe(super(ListFactory, self).html_declarations() + template_declaration)
 
     def js_initializer(self):
         opts = {'definitionPrefix': "'%s'" % self.definition_prefix}
@@ -474,7 +487,7 @@ class StreamFactory(BlockFactory):
             factory.set_name(name)
             self.child_factories[name] = factory
 
-        self.dependencies = self.child_factories.values()
+        self.dependencies = set(self.child_factories.values())
 
     def render_list_member(self, block_type_name, value, prefix, index):
         """
@@ -492,7 +505,7 @@ class StreamFactory(BlockFactory):
         })
 
     def html_declarations(self):
-        template_declarations = format_html_join(
+        return format_html_join(
             '\n', '<script type="text/template" id="{0}-newmember-{1}">{2}</script>',
             [
                 (
@@ -503,11 +516,10 @@ class StreamFactory(BlockFactory):
                 for name, child_factory in self.child_factories.items()
             ]
         )
-        return mark_safe(super(StreamFactory, self).html_declarations() + template_declarations)
 
     @property
     def media(self):
-        return super(StreamFactory, self).media + Media(js=['js/blocks/sequence.js', 'js/blocks/stream.js'])
+        return Media(js=['js/blocks/sequence.js', 'js/blocks/stream.js'])
 
     def js_initializer(self):
         # compile a list of info dictionaries, one for each available block type
