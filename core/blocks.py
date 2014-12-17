@@ -370,27 +370,6 @@ class DeclarativeSubBlocksMetaclass(type):
 class StructFactory(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStructFactory)):
     pass
 
-class InheritableBlockOptions(BlockOptions):
-    """A special case of BlockOptions as used by StreamBlock where child_definitions
-    can be defined either by subclassing or by being passed to __init__"""
-    def __init__(self, child_factories=None, **kwargs):
-        # look in our own __dict__ for child BlockFactories that have been added by subclassing
-        self.child_factories = [
-            item for item in self.__class__.__dict__.items() if isinstance(item[1], BlockFactory)
-        ]
-        # FIXME: looping over __dict__ like this won't pick up fields defined on a superclass
-        # (e.g. StructBlock -> SpeakerBlock -> ExpertSpeakerBlock)
-        self.child_factories.sort(key=lambda x: x[1].creation_counter)
-
-        super(InheritableBlockOptions, self).__init__(**kwargs)
-
-        if child_factories:
-            self.child_factories += [
-                # convert child definitions to instances if they've been passed as classes
-                (name, factory() if isinstance(factory, type) else factory)
-                for (name, factory) in child_factories
-            ]
-
 
 # =========
 # ListBlock
@@ -492,16 +471,17 @@ class ListFactory(BlockFactory):
 # StreamBlock
 # ===========
 
-class StreamFactory(BlockFactory):
+class BaseStreamFactory(BlockFactory):
     default = []
 
-    def __init__(self, block_options, **kwargs):
-        super(StreamFactory, self).__init__(**kwargs)
+    def __init__(self, local_blocks=None, **kwargs):
+        super(BaseStreamFactory, self).__init__(**kwargs)
 
-        self.child_factories = OrderedDict()
-        for name, factory in block_options.child_factories.items():
-            factory.set_name(name)
-            self.child_factories[name] = factory
+        self.child_factories = copy.deepcopy(self.base_blocks)
+        if local_blocks:
+            for name, factory in local_blocks:
+                factory.set_name(name)
+                self.child_factories[name] = factory
 
         self.dependencies = set(self.child_factories.values())
 
@@ -603,6 +583,5 @@ class StreamFactory(BlockFactory):
         values_with_indexes.sort()
         return [{'type': t, 'value': v} for (i, t, v) in values_with_indexes]
 
-class StreamBlock(InheritableBlockOptions):
-    class Meta:
-        factory = StreamFactory
+class StreamFactory(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStreamFactory)):
+    pass

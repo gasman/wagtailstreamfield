@@ -10,7 +10,7 @@ class SpeakerBlock(StructFactory):
     nicknames = ListFactory(TextInputFactory())
     image = ChooserFactory()
 
-class ContentBlock(StructFactory):
+class ContentBlock(StreamFactory):
     heading = TextInputFactory()
     image = ChooserFactory(label='Image')
 
@@ -22,12 +22,9 @@ def home(request):
     page_def = StructFactory([
         ('title', FieldFactory(forms.CharField(), label='Title')),
         ('speakers', ListFactory(SpeakerBlock(), label='Speakers')),
-        ('content', StreamFactory(ContentBlock([
-            ('speaker', ExpertSpeakerBlock(
-                [('another_specialist_subject', TextInputFactory())],
-                label='Featured speaker'
-            )),
-        ]))),
+        ('content', ContentBlock([
+            ('speaker', ExpertSpeakerBlock([('another_specialist_subject', TextInputFactory())], label='Featured speaker')),
+        ])),
     ])
 
     page_data = {
