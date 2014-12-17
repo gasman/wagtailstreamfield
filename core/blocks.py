@@ -31,15 +31,10 @@ def js_dict(d):
 # =========================================
 
 class BlockOptions(object):
-    creation_counter = 0
     def __init__(self, **kwargs):
         # standard options are 'label' and 'default'
         self.label = kwargs.get('label')
         self.default = kwargs.get('default', self.Meta.default)
-
-        # Increase the creation counter, and save our local copy.
-        self.creation_counter = BlockOptions.creation_counter
-        BlockOptions.creation_counter += 1
 
 class BlockFactory(object):
     creation_counter = 0
