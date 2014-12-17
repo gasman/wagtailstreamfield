@@ -43,7 +43,6 @@ def home(request):
     }
 
     page_factory = page_def.Meta.factory(page_def)
-    page_factory.set_definition_prefix('def')
 
     if request.method == 'POST':
         return HttpResponse(

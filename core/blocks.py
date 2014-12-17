@@ -55,6 +55,7 @@ class BlockFactory(object):
         # Increase the creation counter, and save our local copy.
         self.creation_counter = BlockFactory.creation_counter
         BlockFactory.creation_counter += 1
+        self.definition_prefix = 'blockdef-%d' % self.creation_counter
 
     def set_name(self, name):
         self.name = name
@@ -62,9 +63,6 @@ class BlockFactory(object):
         # if we don't have a label already, generate one from name
         if self.label is None:
             self.label = capfirst(name.replace('_', ' '))
-
-    def set_definition_prefix(self, definition_prefix):
-        self.definition_prefix = definition_prefix
 
     @property
     def media(self):
@@ -267,22 +265,16 @@ class StructFactory(BlockFactory):
         super(StructFactory, self).__init__(**kwargs)
 
         self.child_factories = OrderedDict()
+        self.child_js_initializers = {}
         for name, factory in block_options.child_factories:
             factory.set_name(name)
             self.child_factories[name] = factory
 
-        self.dependencies = self.child_factories.values()
-
-    def set_definition_prefix(self, definition_prefix):
-        super(StructFactory, self).set_definition_prefix(definition_prefix)
-
-        self.child_js_initializers = {}
-        for name, factory in self.child_factories.items():
-            factory.set_definition_prefix("%s-%s" % (self.definition_prefix, name))
-
             js_initializer = factory.js_initializer()
             if js_initializer is not None:
                 self.child_js_initializers[name] = js_initializer
+
+        self.dependencies = self.child_factories.values()
 
     def js_initializer(self):
         # skip JS setup entirely if no children have js_initializers
@@ -374,10 +366,6 @@ class ListFactory(BlockFactory):
 
         self.child_factory = block_options.child_factory
         self.dependencies = [self.child_factory]
-
-    def set_definition_prefix(self, definition_prefix):
-        super(ListFactory, self).set_definition_prefix(definition_prefix)
-        self.child_factory.set_definition_prefix(definition_prefix + '-child')
         self.child_js_initializer = self.child_factory.js_initializer()
 
     @property
@@ -487,11 +475,6 @@ class StreamFactory(BlockFactory):
             self.child_factories[name] = factory
 
         self.dependencies = self.child_factories.values()
-
-    def set_definition_prefix(self, definition_prefix):
-        super(StreamFactory, self).set_definition_prefix(definition_prefix)
-        for name, factory in self.child_factories.items():
-            factory.set_definition_prefix("%s-child-%s" % (definition_prefix, name))
 
     def render_list_member(self, block_type_name, value, prefix, index):
         """
