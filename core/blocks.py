@@ -195,10 +195,6 @@ class TextInputFactory(BlockFactory):
     def value_from_datadict(self, data, files, prefix):
         return data.get(prefix, '')
 
-class TextInput(BlockOptions):
-    class Meta:
-        factory = TextInputFactory
-
 
 # ===========
 # Field block
@@ -225,14 +221,6 @@ class FieldFactory(BlockFactory):
 
     def value_from_datadict(self, data, files, prefix):
         return self.field.widget.value_from_datadict(data, files, prefix)
-
-class FieldBlock(BlockOptions):
-    def __init__(self, field, **kwargs):
-        super(FieldBlock, self).__init__(**kwargs)
-        self.field = field
-
-    class Meta:
-        factory = FieldFactory
 
 # =======
 # Chooser
@@ -262,10 +250,6 @@ class ChooserFactory(BlockFactory):
 
     def value_from_datadict(self, data, files, prefix):
         return 123
-
-class Chooser(BlockOptions):
-    class Meta:
-        factory = ChooserFactory
 
 
 # ===========
