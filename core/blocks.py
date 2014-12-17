@@ -42,6 +42,8 @@ class BlockOptions(object):
         BlockOptions.creation_counter += 1
 
 class BlockFactory(object):
+    creation_counter = 0
+
     """
     Setting a 'dependencies' list serves as a shortcut for the common case where a complex block type
     (such as struct, list or stream) relies on one or more inner factory objects, and needs to ensure that
@@ -56,6 +58,10 @@ class BlockFactory(object):
         self.block_options = block_options
         self.default = self.block_options.default
         self.label = getattr(block_options, 'label', None)
+
+        # Increase the creation counter, and save our local copy.
+        self.creation_counter = BlockFactory.creation_counter
+        BlockFactory.creation_counter += 1
 
     def set_name(self, name):
         self.name = name
@@ -259,8 +265,7 @@ class StructFactory(BlockFactory):
         super(StructFactory, self).__init__(*args, **kwargs)
 
         self.child_factories = OrderedDict()
-        for name, opts in self.block_options.child_definitions:
-            factory = opts.Meta.factory(opts)
+        for name, factory in self.block_options.child_factories:
             factory.set_name(name)
             self.child_factories[name] = factory
 
@@ -332,22 +337,22 @@ class StructFactory(BlockFactory):
 class InheritableBlockOptions(BlockOptions):
     """A special case of BlockOptions as used by StructBlock and StreamBlock where child_definitions
     can be defined either by subclassing or by being passed to __init__"""
-    def __init__(self, child_definitions=None, **kwargs):
-        # look in our own __dict__ for child BlockOptions definitions that have been added by subclassing
-        self.child_definitions = [
-            item for item in self.__class__.__dict__.items() if isinstance(item[1], BlockOptions)
+    def __init__(self, child_factories=None, **kwargs):
+        # look in our own __dict__ for child BlockFactories that have been added by subclassing
+        self.child_factories = [
+            item for item in self.__class__.__dict__.items() if isinstance(item[1], BlockFactory)
         ]
         # FIXME: looping over __dict__ like this won't pick up fields defined on a superclass
         # (e.g. StructBlock -> SpeakerBlock -> ExpertSpeakerBlock)
-        self.child_definitions.sort(key=lambda x: x[1].creation_counter)
+        self.child_factories.sort(key=lambda x: x[1].creation_counter)
 
         super(InheritableBlockOptions, self).__init__(**kwargs)
 
-        if child_definitions:
-            self.child_definitions += [
+        if child_factories:
+            self.child_factories += [
                 # convert child definitions to instances if they've been passed as classes
-                (name, child_def() if isinstance(child_def, type) else child_def)
-                for (name, child_def) in child_definitions
+                (name, factory() if isinstance(factory, type) else factory)
+                for (name, factory) in child_factories
             ]
 
 class StructBlock(InheritableBlockOptions):
@@ -473,8 +478,7 @@ class StreamFactory(BlockFactory):
         super(StreamFactory, self).__init__(*args, **kwargs)
 
         self.child_factories = OrderedDict()
-        for name, opts in self.block_options.child_definitions:
-            factory = opts.Meta.factory(opts)
+        for name, factory in self.block_options.child_factories:
             factory.set_name(name)
             self.child_factories[name] = factory
 
