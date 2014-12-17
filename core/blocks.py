@@ -47,8 +47,7 @@ class BlockFactory(object):
     """
     dependencies = []
 
-    def __init__(self, block_options, **kwargs):
-        self.block_options = block_options
+    def __init__(self, **kwargs):
         if 'default' in kwargs:
             self.default = kwargs['default']  # if not specified, leave as the class-level default
         self.label = kwargs.get('label', None)
@@ -196,6 +195,10 @@ class TextInput(BlockOptions):
 class FieldFactory(BlockFactory):
     default = None
 
+    def __init__(self, block_options, **kwargs):
+        super(FieldFactory, self).__init__(**kwargs)
+        self.block_options = block_options
+
     def render(self, value, prefix=''):
         widget = self.block_options.field.widget
 
@@ -260,11 +263,11 @@ class Chooser(BlockOptions):
 class StructFactory(BlockFactory):
     default = {}
 
-    def __init__(self, *args, **kwargs):
-        super(StructFactory, self).__init__(*args, **kwargs)
+    def __init__(self, block_options, **kwargs):
+        super(StructFactory, self).__init__(**kwargs)
 
         self.child_factories = OrderedDict()
-        for name, factory in self.block_options.child_factories:
+        for name, factory in block_options.child_factories:
             factory.set_name(name)
             self.child_factories[name] = factory
 
@@ -366,10 +369,10 @@ class StructBlock(InheritableBlockOptions):
 class ListFactory(BlockFactory):
     default = []
 
-    def __init__(self, *args, **kwargs):
-        super(ListFactory, self).__init__(*args, **kwargs)
+    def __init__(self, block_options, **kwargs):
+        super(ListFactory, self).__init__(**kwargs)
 
-        self.child_factory = self.block_options.child_factory
+        self.child_factory = block_options.child_factory
         self.dependencies = [self.child_factory]
 
     def set_definition_prefix(self, definition_prefix):
@@ -475,11 +478,11 @@ class ListBlock(BlockOptions):
 class StreamFactory(BlockFactory):
     default = []
 
-    def __init__(self, *args, **kwargs):
-        super(StreamFactory, self).__init__(*args, **kwargs)
+    def __init__(self, block_options, **kwargs):
+        super(StreamFactory, self).__init__(**kwargs)
 
         self.child_factories = OrderedDict()
-        for name, factory in self.block_options.child_factories:
+        for name, factory in block_options.child_factories:
             factory.set_name(name)
             self.child_factories[name] = factory
 

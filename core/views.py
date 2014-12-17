@@ -2,19 +2,19 @@ from django.shortcuts import render
 from django import forms
 from django.http import HttpResponse
 
-from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock, FieldBlock
+from core.blocks import StructBlock, ListBlock, StreamBlock, FieldBlock
 
 from core.blocks import TextInputFactory, ChooserFactory, StructFactory, ListFactory, StreamFactory, FieldFactory
 
 class SpeakerBlock(StructBlock):
-    name = TextInputFactory(TextInput(), label='Full name')
-    job_title = TextInputFactory(TextInput(), default="just this guy, y'know?")
-    nicknames = ListFactory(ListBlock(TextInputFactory(TextInput())))
-    image = ChooserFactory(Chooser())
+    name = TextInputFactory(label='Full name')
+    job_title = TextInputFactory(default="just this guy, y'know?")
+    nicknames = ListFactory(ListBlock(TextInputFactory()))
+    image = ChooserFactory()
 
 class ContentBlock(StreamBlock):
-    heading = TextInputFactory(TextInput())
-    image = ChooserFactory(Chooser(), label='Image')
+    heading = TextInputFactory()
+    image = ChooserFactory(label='Image')
 
 #class ExpertSpeakerBlock(SpeakerBlock):
 #    specialist_subject = TextInput()
@@ -24,7 +24,7 @@ def home(request):
         ('title', FieldFactory(FieldBlock(forms.CharField()), label='Title')),
         ('speakers', ListFactory(ListBlock(StructFactory(SpeakerBlock())), label='Speakers')),
         ('content', StreamFactory(ContentBlock([
-            ('speaker', StructFactory(SpeakerBlock([('another_specialist_subject', TextInputFactory(TextInput()))]), label='Featured speaker')),
+            ('speaker', StructFactory(SpeakerBlock([('another_specialist_subject', TextInputFactory())]), label='Featured speaker')),
         ]))),
     ])
 
