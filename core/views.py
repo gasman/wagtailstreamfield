@@ -4,10 +4,12 @@ from django.http import HttpResponse
 
 from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock, FieldBlock
 
+from core.blocks import TextInputFactory, ChooserFactory, StructFactory, ListFactory, StreamFactory, FieldFactory
+
 class SpeakerBlock(StructBlock):
     name = TextInput(label='Full name')
     job_title = TextInput(default="just this guy, y'know?")
-    nicknames = ListBlock(TextInput)
+    nicknames = ListBlock(TextInputFactory(TextInput()))
     image = Chooser()
 
 class ContentBlock(StreamBlock):
@@ -20,7 +22,7 @@ class ContentBlock(StreamBlock):
 def home(request):
     page_def = StructBlock([
         ('title', FieldBlock(forms.CharField(), label='Title')),
-        ('speakers', ListBlock(SpeakerBlock(), label='Speakers')),
+        ('speakers', ListBlock(StructFactory(SpeakerBlock()), label='Speakers')),
         ('content', ContentBlock([
             ('speaker', SpeakerBlock([('another_specialist_subject', TextInput)], label='Featured speaker')),
         ])),

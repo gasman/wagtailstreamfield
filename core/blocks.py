@@ -364,8 +364,7 @@ class ListFactory(BlockFactory):
     def __init__(self, *args, **kwargs):
         super(ListFactory, self).__init__(*args, **kwargs)
 
-        child_block_options = self.block_options.child_block_options
-        self.child_factory = child_block_options.Meta.factory(child_block_options)
+        self.child_factory = self.block_options.child_factory
         self.dependencies = [self.child_factory]
 
     def set_definition_prefix(self, definition_prefix):
@@ -452,13 +451,13 @@ class ListFactory(BlockFactory):
 
 
 class ListBlock(BlockOptions):
-    def __init__(self, child_block_options, **kwargs):
+    def __init__(self, child_factory, **kwargs):
         super(ListBlock, self).__init__(**kwargs)
-        if isinstance(child_block_options, type):
-            # child_block_options was passed as a class, so convert it to a BlockOptions instance
-            self.child_block_options = child_block_options() 
+        if isinstance(child_factory, type):
+            # child_factory was passed as a class, so convert it to a factory instance
+            self.child_factory = child_factory()
         else:
-            self.child_block_options = child_block_options
+            self.child_factory = child_factory
 
     class Meta:
         factory = ListFactory
