@@ -32,9 +32,7 @@ def js_dict(d):
 
 class BlockOptions(object):
     def __init__(self, **kwargs):
-        # standard options are 'label' and 'default'
-        self.label = kwargs.get('label')
-        self.default = kwargs.get('default', self.Meta.default)
+        pass
 
 class BlockFactory(object):
     creation_counter = 0
@@ -49,10 +47,11 @@ class BlockFactory(object):
     """
     dependencies = []
 
-    def __init__(self, block_options):
+    def __init__(self, block_options, **kwargs):
         self.block_options = block_options
-        self.default = self.block_options.default
-        self.label = getattr(block_options, 'label', None)
+        if 'default' in kwargs:
+            self.default = kwargs['default']  # if not specified, leave as the class-level default
+        self.label = kwargs.get('label', None)
 
         # Increase the creation counter, and save our local copy.
         self.creation_counter = BlockFactory.creation_counter
@@ -168,6 +167,8 @@ class BoundBlock(object):
 # ==========
 
 class TextInputFactory(BlockFactory):
+    default = ''
+
     def render(self, value, prefix=''):
         if self.label:
             return format_html(
@@ -186,7 +187,6 @@ class TextInputFactory(BlockFactory):
 class TextInput(BlockOptions):
     class Meta:
         factory = TextInputFactory
-        default = ''
 
 
 # ===========
@@ -194,6 +194,8 @@ class TextInput(BlockOptions):
 # ===========
 
 class FieldFactory(BlockFactory):
+    default = None
+
     def render(self, value, prefix=''):
         widget = self.block_options.field.widget
 
@@ -216,13 +218,14 @@ class FieldBlock(BlockOptions):
 
     class Meta:
         factory = FieldFactory
-        default = None
 
 # =======
 # Chooser
 # =======
 
 class ChooserFactory(BlockFactory):
+    default = None
+
     @property
     def media(self):
         return super(ChooserFactory, self).media + Media(js=['js/blocks/chooser.js'])
@@ -248,7 +251,6 @@ class ChooserFactory(BlockFactory):
 class Chooser(BlockOptions):
     class Meta:
         factory = ChooserFactory
-        default = None
 
 
 # ===========
@@ -256,6 +258,8 @@ class Chooser(BlockOptions):
 # ===========
 
 class StructFactory(BlockFactory):
+    default = {}
+
     def __init__(self, *args, **kwargs):
         super(StructFactory, self).__init__(*args, **kwargs)
 
@@ -353,7 +357,6 @@ class InheritableBlockOptions(BlockOptions):
 class StructBlock(InheritableBlockOptions):
     class Meta:
         factory = StructFactory
-        default = {}
 
 
 # =========
@@ -361,6 +364,8 @@ class StructBlock(InheritableBlockOptions):
 # =========
 
 class ListFactory(BlockFactory):
+    default = []
+
     def __init__(self, *args, **kwargs):
         super(ListFactory, self).__init__(*args, **kwargs)
 
@@ -461,7 +466,6 @@ class ListBlock(BlockOptions):
 
     class Meta:
         factory = ListFactory
-        default = []
 
 
 # ===========
@@ -469,6 +473,8 @@ class ListBlock(BlockOptions):
 # ===========
 
 class StreamFactory(BlockFactory):
+    default = []
+
     def __init__(self, *args, **kwargs):
         super(StreamFactory, self).__init__(*args, **kwargs)
 
@@ -586,4 +592,3 @@ class StreamFactory(BlockFactory):
 class StreamBlock(InheritableBlockOptions):
     class Meta:
         factory = StreamFactory
-        default = []

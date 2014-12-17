@@ -7,24 +7,24 @@ from core.blocks import TextInput, Chooser, StructBlock, ListBlock, StreamBlock,
 from core.blocks import TextInputFactory, ChooserFactory, StructFactory, ListFactory, StreamFactory, FieldFactory
 
 class SpeakerBlock(StructBlock):
-    name = TextInputFactory(TextInput(label='Full name'))
-    job_title = TextInputFactory(TextInput(default="just this guy, y'know?"))
+    name = TextInputFactory(TextInput(), label='Full name')
+    job_title = TextInputFactory(TextInput(), default="just this guy, y'know?")
     nicknames = ListFactory(ListBlock(TextInputFactory(TextInput())))
     image = ChooserFactory(Chooser())
 
 class ContentBlock(StreamBlock):
     heading = TextInputFactory(TextInput())
-    image = ChooserFactory(Chooser(label='Image'))
+    image = ChooserFactory(Chooser(), label='Image')
 
 #class ExpertSpeakerBlock(SpeakerBlock):
 #    specialist_subject = TextInput()
 
 def home(request):
     page_def = StructBlock([
-        ('title', FieldFactory(FieldBlock(forms.CharField(), label='Title'))),
-        ('speakers', ListFactory(ListBlock(StructFactory(SpeakerBlock()), label='Speakers'))),
+        ('title', FieldFactory(FieldBlock(forms.CharField()), label='Title')),
+        ('speakers', ListFactory(ListBlock(StructFactory(SpeakerBlock())), label='Speakers')),
         ('content', StreamFactory(ContentBlock([
-            ('speaker', StructFactory(SpeakerBlock([('another_specialist_subject', TextInputFactory(TextInput()))], label='Featured speaker'))),
+            ('speaker', StructFactory(SpeakerBlock([('another_specialist_subject', TextInputFactory(TextInput()))]), label='Featured speaker')),
         ]))),
     ])
 
