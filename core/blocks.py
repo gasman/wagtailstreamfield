@@ -207,12 +207,12 @@ class TextInput(BlockOptions):
 class FieldFactory(BlockFactory):
     default = None
 
-    def __init__(self, block_options, **kwargs):
+    def __init__(self, field, **kwargs):
         super(FieldFactory, self).__init__(**kwargs)
-        self.block_options = block_options
+        self.field = field
 
     def render(self, value, prefix=''):
-        widget = self.block_options.field.widget
+        widget = self.field.widget
 
         widget_html = widget.render(prefix, value, {'id': prefix})
         if self.label:
@@ -224,7 +224,7 @@ class FieldFactory(BlockFactory):
             return widget_html
 
     def value_from_datadict(self, data, files, prefix):
-        return self.block_options.field.widget.value_from_datadict(data, files, prefix)
+        return self.field.widget.value_from_datadict(data, files, prefix)
 
 class FieldBlock(BlockOptions):
     def __init__(self, field, **kwargs):

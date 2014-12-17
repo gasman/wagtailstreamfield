@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django import forms
 from django.http import HttpResponse
 
-from core.blocks import StructBlock, ListBlock, StreamBlock, FieldBlock
+from core.blocks import StructBlock, ListBlock, StreamBlock
 
 from core.blocks import TextInputFactory, ChooserFactory, StructFactory, ListFactory, StreamFactory, FieldFactory
 
@@ -21,7 +21,7 @@ class ContentBlock(StreamBlock):
 
 def home(request):
     page_def = StructBlock([
-        ('title', FieldFactory(FieldBlock(forms.CharField()), label='Title')),
+        ('title', FieldFactory(forms.CharField(), label='Title')),
         ('speakers', ListFactory(ListBlock(StructFactory(SpeakerBlock())), label='Speakers')),
         ('content', StreamFactory(ContentBlock([
             ('speaker', StructFactory(SpeakerBlock([('another_specialist_subject', TextInputFactory())]), label='Featured speaker')),
