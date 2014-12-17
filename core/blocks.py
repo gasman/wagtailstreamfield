@@ -33,11 +33,7 @@ def js_dict(d):
 # Top-level superclasses and helper objects
 # =========================================
 
-class BlockOptions(object):
-    def __init__(self, **kwargs):
-        pass
-
-class BlockFactory(object):
+class Block(object):
     creation_counter = 0
 
     """
@@ -76,8 +72,8 @@ class BlockFactory(object):
         self.label = kwargs.get('label', None)
 
         # Increase the creation counter, and save our local copy.
-        self.creation_counter = BlockFactory.creation_counter
-        BlockFactory.creation_counter += 1
+        self.creation_counter = Block.creation_counter
+        Block.creation_counter += 1
         self.definition_prefix = 'blockdef-%d' % self.creation_counter
 
     def set_name(self, name):
@@ -180,7 +176,7 @@ class BoundBlock(object):
 # Text input
 # ==========
 
-class TextInputFactory(BlockFactory):
+class TextInputBlock(Block):
     default = ''
 
     def render(self, value, prefix=''):
@@ -203,11 +199,11 @@ class TextInputFactory(BlockFactory):
 # Field block
 # ===========
 
-class FieldFactory(BlockFactory):
+class FieldBlock(Block):
     default = None
 
     def __init__(self, field, **kwargs):
-        super(FieldFactory, self).__init__(**kwargs)
+        super(FieldBlock, self).__init__(**kwargs)
         self.field = field
 
     def render(self, value, prefix=''):
@@ -229,7 +225,7 @@ class FieldFactory(BlockFactory):
 # Chooser
 # =======
 
-class ChooserFactory(BlockFactory):
+class ChooserBlock(Block):
     default = None
 
     @property
@@ -259,11 +255,11 @@ class ChooserFactory(BlockFactory):
 # StructBlock
 # ===========
 
-class BaseStructFactory(BlockFactory):
+class BaseStructBlock(Block):
     default = {}
 
     def __init__(self, local_blocks=None, **kwargs):
-        super(BaseStructFactory, self).__init__(**kwargs)
+        super(BaseStructBlock, self).__init__(**kwargs)
 
         self.child_factories = copy.deepcopy(self.base_blocks)
         if local_blocks:
@@ -340,7 +336,7 @@ class DeclarativeSubBlocksMetaclass(type):
         # Collect sub-blocks from current class.
         current_blocks = []
         for key, value in list(attrs.items()):
-            if isinstance(value, BlockFactory):
+            if isinstance(value, Block):
                 current_blocks.append((key, value))
                 value.set_name(key)
                 attrs.pop(key)
@@ -367,7 +363,7 @@ class DeclarativeSubBlocksMetaclass(type):
 
         return new_class
 
-class StructFactory(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStructFactory)):
+class StructBlock(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStructBlock)):
     pass
 
 
@@ -375,11 +371,11 @@ class StructFactory(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStruct
 # ListBlock
 # =========
 
-class ListFactory(BlockFactory):
+class ListBlock(Block):
     default = []
 
     def __init__(self, child_factory, **kwargs):
-        super(ListFactory, self).__init__(**kwargs)
+        super(ListBlock, self).__init__(**kwargs)
 
         if isinstance(child_factory, type):
             # child_factory was passed as a class, so convert it to a factory instance
@@ -471,11 +467,11 @@ class ListFactory(BlockFactory):
 # StreamBlock
 # ===========
 
-class BaseStreamFactory(BlockFactory):
+class BaseStreamBlock(Block):
     default = []
 
     def __init__(self, local_blocks=None, **kwargs):
-        super(BaseStreamFactory, self).__init__(**kwargs)
+        super(BaseStreamBlock, self).__init__(**kwargs)
 
         self.child_factories = copy.deepcopy(self.base_blocks)
         if local_blocks:
@@ -583,5 +579,5 @@ class BaseStreamFactory(BlockFactory):
         values_with_indexes.sort()
         return [{'type': t, 'value': v} for (i, t, v) in values_with_indexes]
 
-class StreamFactory(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStreamFactory)):
+class StreamBlock(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStreamBlock)):
     pass
