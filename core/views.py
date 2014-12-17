@@ -2,14 +2,14 @@ from django.shortcuts import render
 from django import forms
 from django.http import HttpResponse
 
-from core.blocks import StructBlock, ListBlock, StreamBlock
+from core.blocks import StructBlock, StreamBlock
 
 from core.blocks import TextInputFactory, ChooserFactory, StructFactory, ListFactory, StreamFactory, FieldFactory
 
 class SpeakerBlock(StructBlock):
     name = TextInputFactory(label='Full name')
     job_title = TextInputFactory(default="just this guy, y'know?")
-    nicknames = ListFactory(ListBlock(TextInputFactory()))
+    nicknames = ListFactory(TextInputFactory())
     image = ChooserFactory()
 
 class ContentBlock(StreamBlock):
@@ -22,7 +22,7 @@ class ContentBlock(StreamBlock):
 def home(request):
     page_def = StructBlock([
         ('title', FieldFactory(forms.CharField(), label='Title')),
-        ('speakers', ListFactory(ListBlock(StructFactory(SpeakerBlock())), label='Speakers')),
+        ('speakers', ListFactory(StructFactory(SpeakerBlock()), label='Speakers')),
         ('content', StreamFactory(ContentBlock([
             ('speaker', StructFactory(SpeakerBlock([('another_specialist_subject', TextInputFactory())]), label='Featured speaker')),
         ]))),

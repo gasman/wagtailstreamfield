@@ -359,10 +359,15 @@ class StructBlock(InheritableBlockOptions):
 class ListFactory(BlockFactory):
     default = []
 
-    def __init__(self, block_options, **kwargs):
+    def __init__(self, child_factory, **kwargs):
         super(ListFactory, self).__init__(**kwargs)
 
-        self.child_factory = block_options.child_factory
+        if isinstance(child_factory, type):
+            # child_factory was passed as a class, so convert it to a factory instance
+            self.child_factory = child_factory()
+        else:
+            self.child_factory = child_factory
+
         self.dependencies = set([self.child_factory])
         self.child_js_initializer = self.child_factory.js_initializer()
 
@@ -441,19 +446,6 @@ class ListFactory(BlockFactory):
 
         values_with_indexes.sort()
         return [v for (i, v) in values_with_indexes]
-
-
-class ListBlock(BlockOptions):
-    def __init__(self, child_factory, **kwargs):
-        super(ListBlock, self).__init__(**kwargs)
-        if isinstance(child_factory, type):
-            # child_factory was passed as a class, so convert it to a factory instance
-            self.child_factory = child_factory()
-        else:
-            self.child_factory = child_factory
-
-    class Meta:
-        factory = ListFactory
 
 
 # ===========
