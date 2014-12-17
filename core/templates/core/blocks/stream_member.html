@@ -1,7 +1,7 @@
 {% extends "core/blocks/sequence_member.html" %}
 
 {% block hidden_fields %}
-    <input type="hidden" id="{{ prefix }}-type" name="{{ prefix }}-type" value="{{ child.factory.name }}">
+    <input type="hidden" id="{{ prefix }}-type" name="{{ prefix }}-type" value="{{ child.block.name }}">
 {% endblock %}
 
 {% block header_controls %}

@@ -41,18 +41,16 @@ def home(request):
         ],
     }
 
-    page_factory = page_def
-
     if request.method == 'POST':
         return HttpResponse(
-            repr(page_factory.value_from_datadict(request.POST, request.FILES, 'page')), mimetype="text/plain")
+            repr(page_def.value_from_datadict(request.POST, request.FILES, 'page')), mimetype="text/plain")
     else:
 
-        page = page_factory.bind(page_data, prefix='page')
+        page = page_def.bind(page_data, prefix='page')
 
         return render(request, 'core/home.html', {
-            'media': page_factory.all_media(),
-            'html_declarations': page_factory.all_html_declarations(),
-            'initializer': page_factory.js_initializer(),
+            'media': page_def.all_media(),
+            'html_declarations': page_def.all_html_declarations(),
+            'initializer': page_def.js_initializer(),
             'page': page,
         })

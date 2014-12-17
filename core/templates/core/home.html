@@ -5,7 +5,7 @@
         {{ media }}
         {{ html_declarations }}
 
-        {% with page.factory.js_initializer as js_initializer %}
+        {% with page.block.js_initializer as js_initializer %}
             {% if js_initializer %}
                 <script>
                     $(function() {
