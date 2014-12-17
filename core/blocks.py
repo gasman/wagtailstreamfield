@@ -52,12 +52,9 @@ class BlockFactory(object):
     """
     dependencies = []
 
-    def __init__(self, block_options, definition_prefix=''):
+    def __init__(self, block_options):
         self.block_options = block_options
-        self.definition_prefix = definition_prefix
-
         self.default = self.block_options.default
-
         self.label = getattr(block_options, 'label', None)
 
     def set_name(self, name):
@@ -66,6 +63,9 @@ class BlockFactory(object):
         # if we don't have a label already, generate one from name
         if self.label is None:
             self.label = capfirst(name.replace('_', ' '))
+
+    def set_definition_prefix(self, definition_prefix):
+        self.definition_prefix = definition_prefix
 
     @property
     def media(self):
@@ -259,17 +259,23 @@ class StructFactory(BlockFactory):
         super(StructFactory, self).__init__(*args, **kwargs)
 
         self.child_factories = OrderedDict()
-        self.child_js_initializers = {}
         for name, opts in self.block_options.child_definitions:
-            factory = opts.Meta.factory(opts, definition_prefix="%s-%s" % (self.definition_prefix, name))
+            factory = opts.Meta.factory(opts)
             factory.set_name(name)
             self.child_factories[name] = factory
+
+        self.dependencies = self.child_factories.values()
+
+    def set_definition_prefix(self, definition_prefix):
+        super(StructFactory, self).set_definition_prefix(definition_prefix)
+
+        self.child_js_initializers = {}
+        for name, factory in self.child_factories.items():
+            factory.set_definition_prefix("%s-%s" % (self.definition_prefix, name))
 
             js_initializer = factory.js_initializer()
             if js_initializer is not None:
                 self.child_js_initializers[name] = js_initializer
-
-        self.dependencies = self.child_factories.values()
 
     def js_initializer(self):
         # skip JS setup entirely if no children have js_initializers
@@ -359,10 +365,13 @@ class ListFactory(BlockFactory):
         super(ListFactory, self).__init__(*args, **kwargs)
 
         child_block_options = self.block_options.child_block_options
-        self.child_factory = child_block_options.Meta.factory(child_block_options,
-            definition_prefix=self.definition_prefix + '-child')
-        self.child_js_initializer = self.child_factory.js_initializer()
+        self.child_factory = child_block_options.Meta.factory(child_block_options)
         self.dependencies = [self.child_factory]
+
+    def set_definition_prefix(self, definition_prefix):
+        super(ListFactory, self).set_definition_prefix(definition_prefix)
+        self.child_factory.set_definition_prefix(definition_prefix + '-child')
+        self.child_js_initializer = self.child_factory.js_initializer()
 
     @property
     def media(self):
@@ -466,11 +475,16 @@ class StreamFactory(BlockFactory):
 
         self.child_factories = OrderedDict()
         for name, opts in self.block_options.child_definitions:
-            factory = opts.Meta.factory(opts, definition_prefix="%s-child-%s" % (self.definition_prefix, name))
+            factory = opts.Meta.factory(opts)
             factory.set_name(name)
             self.child_factories[name] = factory
 
         self.dependencies = self.child_factories.values()
+
+    def set_definition_prefix(self, definition_prefix):
+        super(StreamFactory, self).set_definition_prefix(definition_prefix)
+        for name, factory in self.child_factories.items():
+            factory.set_definition_prefix("%s-child-%s" % (definition_prefix, name))
 
     def render_list_member(self, block_type_name, value, prefix, index):
         """
