@@ -2,29 +2,31 @@ from django.shortcuts import render
 from django import forms
 from django.http import HttpResponse
 
-from core.blocks import StructBlock, StreamBlock
-
 from core.blocks import TextInputFactory, ChooserFactory, StructFactory, ListFactory, StreamFactory, FieldFactory
 
-class SpeakerBlock(StructBlock):
+class SpeakerBlock(StructFactory):
     name = TextInputFactory(label='Full name')
     job_title = TextInputFactory(default="just this guy, y'know?")
     nicknames = ListFactory(TextInputFactory())
     image = ChooserFactory()
 
-class ContentBlock(StreamBlock):
+class ContentBlock(StructFactory):
     heading = TextInputFactory()
     image = ChooserFactory(label='Image')
 
-#class ExpertSpeakerBlock(SpeakerBlock):
-#    specialist_subject = TextInput()
+class ExpertSpeakerBlock(SpeakerBlock):
+    image = None
+    specialist_subject = TextInputFactory()
 
 def home(request):
-    page_def = StructBlock([
+    page_def = StructFactory([
         ('title', FieldFactory(forms.CharField(), label='Title')),
-        ('speakers', ListFactory(StructFactory(SpeakerBlock()), label='Speakers')),
+        ('speakers', ListFactory(SpeakerBlock(), label='Speakers')),
         ('content', StreamFactory(ContentBlock([
-            ('speaker', StructFactory(SpeakerBlock([('another_specialist_subject', TextInputFactory())]), label='Featured speaker')),
+            ('speaker', ExpertSpeakerBlock(
+                [('another_specialist_subject', TextInputFactory())],
+                label='Featured speaker'
+            )),
         ]))),
     ])
 
@@ -42,7 +44,7 @@ def home(request):
         ],
     }
 
-    page_factory = page_def.Meta.factory(page_def)
+    page_factory = page_def
 
     if request.method == 'POST':
         return HttpResponse(

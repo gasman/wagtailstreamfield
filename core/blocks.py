@@ -1,4 +1,5 @@
 import re
+import copy
 from collections import OrderedDict
 
 from django.utils.html import format_html, format_html_join
@@ -6,6 +7,8 @@ from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.template.loader import render_to_string
 from django.forms import Media
+
+import six
 
 # helpers for Javascript expression formatting
 
@@ -256,18 +259,20 @@ class ChooserFactory(BlockFactory):
 # StructBlock
 # ===========
 
-class StructFactory(BlockFactory):
+class BaseStructFactory(BlockFactory):
     default = {}
 
-    def __init__(self, block_options, **kwargs):
-        super(StructFactory, self).__init__(**kwargs)
+    def __init__(self, local_blocks=None, **kwargs):
+        super(BaseStructFactory, self).__init__(**kwargs)
 
-        self.child_factories = OrderedDict()
+        self.child_factories = copy.deepcopy(self.base_blocks)
+        if local_blocks:
+            for name, factory in local_blocks:
+                factory.set_name(name)
+                self.child_factories[name] = factory
+
         self.child_js_initializers = {}
-        for name, factory in block_options.child_factories:
-            factory.set_name(name)
-            self.child_factories[name] = factory
-
+        for name, factory in self.child_factories.items():
             js_initializer = factory.js_initializer()
             if js_initializer is not None:
                 self.child_js_initializers[name] = js_initializer
@@ -326,8 +331,47 @@ class StructFactory(BlockFactory):
             for name, factory in self.child_factories.items()
         ])
 
+class DeclarativeSubBlocksMetaclass(type):
+    """
+    Metaclass that collects sub-blocks declared on the base classes.
+    (cheerfully stolen from https://github.com/django/django/blob/master/django/forms/forms.py)
+    """
+    def __new__(mcs, name, bases, attrs):
+        # Collect sub-blocks from current class.
+        current_blocks = []
+        for key, value in list(attrs.items()):
+            if isinstance(value, BlockFactory):
+                current_blocks.append((key, value))
+                value.set_name(key)
+                attrs.pop(key)
+        current_blocks.sort(key=lambda x: x[1].creation_counter)
+        attrs['declared_blocks'] = OrderedDict(current_blocks)
+
+        new_class = (super(DeclarativeSubBlocksMetaclass, mcs)
+            .__new__(mcs, name, bases, attrs))
+
+        # Walk through the MRO.
+        declared_blocks = OrderedDict()
+        for base in reversed(new_class.__mro__):
+            # Collect sub-blocks from base class.
+            if hasattr(base, 'declared_blocks'):
+                declared_blocks.update(base.declared_blocks)
+
+            # Field shadowing.
+            for attr, value in base.__dict__.items():
+                if value is None and attr in declared_blocks:
+                    declared_blocks.pop(attr)
+
+        new_class.base_blocks = declared_blocks
+        new_class.declared_blocks = declared_blocks
+
+        return new_class
+
+class StructFactory(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStructFactory)):
+    pass
+
 class InheritableBlockOptions(BlockOptions):
-    """A special case of BlockOptions as used by StructBlock and StreamBlock where child_definitions
+    """A special case of BlockOptions as used by StreamBlock where child_definitions
     can be defined either by subclassing or by being passed to __init__"""
     def __init__(self, child_factories=None, **kwargs):
         # look in our own __dict__ for child BlockFactories that have been added by subclassing
@@ -346,10 +390,6 @@ class InheritableBlockOptions(BlockOptions):
                 (name, factory() if isinstance(factory, type) else factory)
                 for (name, factory) in child_factories
             ]
-
-class StructBlock(InheritableBlockOptions):
-    class Meta:
-        factory = StructFactory
 
 
 # =========
@@ -459,7 +499,7 @@ class StreamFactory(BlockFactory):
         super(StreamFactory, self).__init__(**kwargs)
 
         self.child_factories = OrderedDict()
-        for name, factory in block_options.child_factories:
+        for name, factory in block_options.child_factories.items():
             factory.set_name(name)
             self.child_factories[name] = factory
 
