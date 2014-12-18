@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django import forms
 from django.http import HttpResponse
+from django.core.exceptions import ValidationError
 
 from core.blocks import TextInputBlock, ChooserBlock, StructBlock, ListBlock, StreamBlock, FieldBlock
 
@@ -43,8 +44,19 @@ def home(request):
 
     if request.method == 'POST':
         value = PAGE_DEF.value_from_datadict(request.POST, request.FILES, 'page')
-        clean_value = PAGE_DEF.clean(value)
-        return HttpResponse(repr(clean_value), mimetype="text/plain")
+        try:
+            clean_value = PAGE_DEF.clean(value)
+        except ValidationError as e:
+            page = PAGE_DEF.bind(value, prefix='page', error=e)
+
+            return render(request, 'core/home.html', {
+                'media': PAGE_DEF.all_media(),
+                'html_declarations': PAGE_DEF.all_html_declarations(),
+                'initializer': PAGE_DEF.js_initializer(),
+                'page': page,
+            })
+        else:
+            return HttpResponse(repr(clean_value), content_type="text/plain")
     else:
 
         page = PAGE_DEF.bind(page_data, prefix='page')

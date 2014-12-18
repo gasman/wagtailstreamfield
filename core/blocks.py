@@ -7,6 +7,7 @@ from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.template.loader import render_to_string
 from django.forms import Media
+from django.forms.utils import ErrorList
 
 import six
 
@@ -124,15 +125,15 @@ class Block(object):
     def value_from_datadict(self, data, files, prefix):
         raise NotImplementedError('%s.value_from_datadict' % self.__class__)
 
-    def bind(self, value, prefix):
+    def bind(self, value, prefix, error=None):
         """
         Return a BoundBlock which represents the association of this block definition with a value
-        and a prefix.
+        and a prefix (and optionally, a ValidationError to be rendered).
         BoundBlock primarily exists as a convenience to allow rendering within templates:
         bound_block.render() rather than blockdef.render(value, prefix) which can't be called from
         within a template.
         """
-        return BoundBlock(self, prefix, value)
+        return BoundBlock(self, prefix, value, error=error)
 
     def prototype_block(self):
         """
@@ -148,18 +149,23 @@ class Block(object):
         The thrown ValidationError instance will subsequently be passed to render() to display the
         error message; nested blocks therefore need to wrap child validations like this:
         https://docs.djangoproject.com/en/dev/ref/forms/validation/#raising-multiple-errors
+
+        NB The ValidationError must have an error_list property (which can be achieved by passing a
+        list or an individual error message to its constructor), NOT an error_dict -
+        Django has problems nesting ValidationErrors with error_dicts.
         """
         return value
 
 
 class BoundBlock(object):
-    def __init__(self, block, prefix, value):
+    def __init__(self, block, prefix, value, error=None):
         self.block = block
         self.prefix = prefix
         self.value = value
+        self.error = error
 
     def render(self):
-        return self.block.render(self.value, self.prefix)
+        return self.block.render(self.value, self.prefix, error=self.error)
 
 
 # ==========
@@ -169,7 +175,7 @@ class BoundBlock(object):
 class TextInputBlock(Block):
     default = ''
 
-    def render(self, value, prefix=''):
+    def render(self, value, prefix='', error=None):
         if self.label:
             return format_html(
                 """<label for="{prefix}">{label}</label> <input type="text" name="{prefix}" id="{prefix}" value="{value}">""",
@@ -196,17 +202,25 @@ class FieldBlock(Block):
         super(FieldBlock, self).__init__(**kwargs)
         self.field = field
 
-    def render(self, value, prefix=''):
+    def render(self, value, prefix='', error=None):
         widget = self.field.widget
 
         widget_html = widget.render(prefix, value, {'id': prefix})
+
+        if error:
+            error_html = str(ErrorList(error.error_list))
+        else:
+            error_html = ''
+
         if self.label:
-            return format_html(
-                """<label for={label_id}>{label}</label> {widget_html}""",
-                label_id=widget.id_for_label(prefix), label=self.label, widget_html=widget_html
+            label_html = format_html(
+                """<label for={label_id}>{label}</label> """,
+                label_id=widget.id_for_label(prefix), label=self.label
             )
         else:
-            return widget_html
+            label_html = ''
+
+        return mark_safe(error_html + label_html + widget_html)
 
     def value_from_datadict(self, data, files, prefix):
         return self.field.widget.value_from_datadict(data, files, prefix)
@@ -228,7 +242,7 @@ class ChooserBlock(Block):
     def js_initializer(self):
         return "Chooser('%s')" % self.definition_prefix
 
-    def render(self, value, prefix=''):
+    def render(self, value, prefix='', error=None):
         if self.label:
             return format_html(
                 """<label>{label}</label> <input type="button" id="{prefix}-button" value="Choose a thing">""",
@@ -279,11 +293,10 @@ class BaseStructBlock(Block):
     def media(self):
         return Media(js=['js/blocks/struct.js'])
 
-    def render(self, value, prefix=''):
+    def render(self, value, prefix='', error=None):
         child_renderings = [
-            block.render(
-                value.get(name, block.default), prefix="%s-%s" % (prefix, name)
-            )
+            block.render(value.get(name, block.default), prefix="%s-%s" % (prefix, name),
+                error=error.params.get(name) if error else None)
             for name, block in self.child_blocks.items()
         ]
 
@@ -313,7 +326,9 @@ class BaseStructBlock(Block):
                 errors[name] = e
 
         if errors:
-            raise ValidationError(errors)
+            # The message here is arbitrary - outputting error messages is delegated to the child blocks,
+            # which only involves the 'params' dict
+            raise ValidationError('Validation error in StructBlock', params=errors)
 
         return result
 
@@ -381,12 +396,12 @@ class ListBlock(Block):
     def media(self):
         return Media(js=['js/blocks/sequence.js', 'js/blocks/list.js'])
 
-    def render_list_member(self, value, prefix, index):
+    def render_list_member(self, value, prefix, index, error=None):
         """
         Render the HTML for a single list item. This consists of an <li> wrapper, hidden fields
         to manage ID/deleted state, delete/reorder buttons, and the child block's own HTML.
         """
-        child = self.child_block.bind(value, prefix="%s-value" % prefix)
+        child = self.child_block.bind(value, prefix="%s-value" % prefix, error=error)
         return render_to_string('core/blocks/list_member.html', {
             'prefix': prefix,
             'child': child,
@@ -413,9 +428,10 @@ class ListBlock(Block):
 
         return "ListBlock(%s)" % js_dict(opts)
 
-    def render(self, value, prefix=''):
+    def render(self, value, prefix='', error=None):
         list_members_html = [
-            self.render_list_member(child_val, "%s-%d" % (prefix, i), i)
+            self.render_list_member(child_val, "%s-%d" % (prefix, i), i,
+                error=error.params[i] if error else None)
             for (i, child_val) in enumerate(value)
         ]
 
@@ -453,7 +469,9 @@ class ListBlock(Block):
                 errors.append(None)
 
         if any(errors):
-            raise ValidationError(errors)
+            # The message here is arbitrary - outputting error messages is delegated to the child blocks,
+            # which only involves the 'params' list
+            raise ValidationError('Validation error in ListBlock', params=errors)
 
         return result
 
@@ -476,13 +494,13 @@ class BaseStreamBlock(Block):
 
         self.dependencies = set(self.child_blocks.values())
 
-    def render_list_member(self, block_type_name, value, prefix, index):
+    def render_list_member(self, block_type_name, value, prefix, index, error=None):
         """
         Render the HTML for a single list item. This consists of an <li> wrapper, hidden fields
         to manage ID/deleted state/type, delete/reorder buttons, and the child block's own HTML.
         """
         child_block = self.child_blocks[block_type_name]
-        child = child_block.bind(value, prefix="%s-value" % prefix)
+        child = child_block.bind(value, prefix="%s-value" % prefix, error=error)
         return render_to_string('core/blocks/stream_member.html', {
             'child_blocks': self.child_blocks.values(),
             'block_type_name': block_type_name,
@@ -531,9 +549,10 @@ class BaseStreamBlock(Block):
 
         return "StreamBlock(%s)" % js_dict(opts)
 
-    def render(self, value, prefix=''):
+    def render(self, value, prefix='', error=None):
         list_members_html = [
-            self.render_list_member(member['type'], member['value'], "%s-%d" % (prefix, i), i)
+            self.render_list_member(member['type'], member['value'], "%s-%d" % (prefix, i), i,
+                error=error.params[i] if error else None)
             for (i, member) in enumerate(value)
         ]
 
@@ -581,7 +600,9 @@ class BaseStreamBlock(Block):
                 errors.append(None)
 
         if any(errors):
-            raise ValidationError(errors)
+            # The message here is arbitrary - outputting error messages is delegated to the child blocks,
+            # which only involves the 'params' list
+            raise ValidationError('Validation error in StreamBlock', params=errors)
 
         return result
 
