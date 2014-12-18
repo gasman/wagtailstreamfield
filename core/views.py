@@ -18,15 +18,15 @@ class ExpertSpeakerBlock(SpeakerBlock):
     image = None
     specialist_subject = TextInputBlock()
 
-def home(request):
-    page_def = StructBlock([
-        ('title', FieldBlock(forms.CharField(), label='Title')),
-        ('speakers', ListBlock(SpeakerBlock(), label='Speakers')),
-        ('content', ContentBlock([
-            ('speaker', ExpertSpeakerBlock([('another_specialist_subject', TextInputBlock())], label='Featured speaker')),
-        ])),
-    ])
+PAGE_DEF = StructBlock([
+    ('title', FieldBlock(forms.CharField(), label='Title')),
+    ('speakers', ListBlock(SpeakerBlock(), label='Speakers')),
+    ('content', ContentBlock([
+        ('speaker', ExpertSpeakerBlock([('another_specialist_subject', TextInputBlock())], label='Featured speaker')),
+    ])),
+])
 
+def home(request):
     page_data = {
         'title': 'My lovely event',
         'speakers': [
@@ -43,14 +43,14 @@ def home(request):
 
     if request.method == 'POST':
         return HttpResponse(
-            repr(page_def.value_from_datadict(request.POST, request.FILES, 'page')), mimetype="text/plain")
+            repr(PAGE_DEF.value_from_datadict(request.POST, request.FILES, 'page')), mimetype="text/plain")
     else:
 
-        page = page_def.bind(page_data, prefix='page')
+        page = PAGE_DEF.bind(page_data, prefix='page')
 
         return render(request, 'core/home.html', {
-            'media': page_def.all_media(),
-            'html_declarations': page_def.all_html_declarations(),
-            'initializer': page_def.js_initializer(),
+            'media': PAGE_DEF.all_media(),
+            'html_declarations': PAGE_DEF.all_html_declarations(),
+            'initializer': PAGE_DEF.js_initializer(),
             'page': page,
         })
