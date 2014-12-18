@@ -112,7 +112,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    #'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
 ROOT_URLCONF = 'wagtailstreamfield.urls'
@@ -136,7 +136,7 @@ INSTALLED_APPS = (
 
     'south',
     'compressor',
-    'debug_toolbar',
+    #'debug_toolbar',
 
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
