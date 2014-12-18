@@ -1,5 +1,4 @@
 import re
-import copy
 from collections import OrderedDict
 
 from django.utils.html import format_html, format_html_join
@@ -242,7 +241,7 @@ class BaseStructBlock(Block):
     def __init__(self, local_blocks=None, **kwargs):
         super(BaseStructBlock, self).__init__(**kwargs)
 
-        self.child_blocks = copy.deepcopy(self.base_blocks)
+        self.child_blocks = self.base_blocks.copy()  # create a local (shallow) copy of base_blocks so that it can be supplemented by local_blocks
         if local_blocks:
             for name, block in local_blocks:
                 block.set_name(name)
@@ -425,7 +424,7 @@ class BaseStreamBlock(Block):
     def __init__(self, local_blocks=None, **kwargs):
         super(BaseStreamBlock, self).__init__(**kwargs)
 
-        self.child_blocks = copy.deepcopy(self.base_blocks)
+        self.child_blocks = self.base_blocks.copy()  # create a local (shallow) copy of base_blocks so that it can be supplemented by local_blocks
         if local_blocks:
             for name, block in local_blocks:
                 block.set_name(name)
