@@ -62,9 +62,6 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
             if (opts.onInitializeMember) {
                 opts.onInitializeMember(newMember);
             }
-            if (opts.onInitializeNewMember) {
-                opts.onInitializeNewMember(newMember);
-            }
 
             newMember._markAdded();
         }
@@ -163,16 +160,12 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
         };
 
         /* initialize initial list members */
-        console.log('there are', self.getCount(), 'children of', opts.prefix);
         for (var i = 0; i < self.getCount(); i++) {
             var memberPrefix = opts.prefix + '-' + i;
             var sequenceMember = SequenceMember(self, memberPrefix);
             members[i] = sequenceMember;
             if (opts.onInitializeMember) {
                 opts.onInitializeMember(sequenceMember);
-            }
-            if (opts.onInitializeInitialMember) {
-                opts.onInitializeInitialMember(sequenceMember, i);
             }
         }
 

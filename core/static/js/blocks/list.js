@@ -10,23 +10,15 @@
             var sequence = Sequence({
                 'prefix': elementPrefix,
                 'onInitializeMember': function(sequenceMember) {
-                    /* code to be run on initializing each element, regardless of whether it's part of the
-                    initial list or being added dynamically */
+                    /* initialize child block's JS behaviour */
+                    if (opts.childInitializer) {
+                        opts.childInitializer(sequenceMember.prefix + '-value');
+                    }
 
                     /* initialise delete button */
                     $('#' + sequenceMember.prefix + '-delete').click(function() {
                         sequenceMember.delete();
                     });
-                },
-                'onInitializeNewMember': function(sequenceMember) {
-                    if (opts.childInitializer) {
-                        opts.childInitializer(sequenceMember.prefix + '-value');
-                    }
-                },
-                'onInitializeInitialMember': function(sequenceMember, index) {
-                    if (opts.childInitializer) {
-                        opts.childInitializer(sequenceMember.prefix + '-value');
-                    }
                 }
             });
 

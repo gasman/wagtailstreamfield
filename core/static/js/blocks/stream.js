@@ -12,20 +12,18 @@
             listMemberTemplates[childBlock.name] = template;
         }
 
-        function initChild(blockTypeName, listMemberPrefix) {
-            blockOpts = childBlocksByName[blockTypeName];
-
-            /* run childInitializer if one has been supplied */
-            if (blockOpts.initializer) {
-                /* the child block's own elements have the prefix '{list member prefix}-value' */
-                blockOpts.initializer(listMemberPrefix + '-value');
-            }
-        }
-
         return function(elementPrefix) {
             var sequence = Sequence({
                 'prefix': elementPrefix,
                 'onInitializeMember': function(sequenceMember) {
+                    /* initialize child block's JS behaviour */
+                    var blockTypeName = $('#' + sequenceMember.prefix + '-type').val();
+                    var blockOpts = childBlocksByName[blockTypeName];
+                    if (blockOpts.initializer) {
+                        /* the child block's own elements have the prefix '{list member prefix}-value' */
+                        blockOpts.initializer(sequenceMember.prefix + '-value');
+                    }
+
                     /* initialize delete button */
                     $('#' + sequenceMember.prefix + '-delete').click(function() {
                         sequenceMember.delete();
@@ -41,14 +39,6 @@
                     for (var i = 0; i < opts.childBlocks.length; i++) {
                         initializeAppendButton(opts.childBlocks[i]);
                     }
-                },
-                'onInitializeInitialMember': function(sequenceMember, index) {
-                    var blockTypeName = $('#' + sequenceMember.prefix + '-type').val();
-                    initChild(blockTypeName, sequenceMember.prefix);
-                },
-                'onInitializeNewMember': function(sequenceMember) {
-                    var blockTypeName = $('#' + sequenceMember.prefix + '-type').val();
-                    initChild(blockTypeName,sequenceMember.prefix);
                 }
             });
 
