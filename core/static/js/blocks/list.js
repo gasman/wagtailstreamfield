@@ -3,11 +3,10 @@
         /* contents of 'opts':
             definitionPrefix (required)
             childInitializer (optional) - JS initializer function for each child
-            templateChildParam (optional) - first param to be passed to childInitializer when adding a new child
         */
         var listMemberTemplate = $('#' + opts.definitionPrefix + '-newmember').text();
 
-        return function(childParams, elementPrefix) {
+        return function(elementPrefix) {
             var sequence = Sequence({
                 'prefix': elementPrefix,
                 'onInitializeMember': function(sequenceMember) {
@@ -21,12 +20,12 @@
                 },
                 'onInitializeNewMember': function(sequenceMember) {
                     if (opts.childInitializer) {
-                        opts.childInitializer(opts.templateChildParam, sequenceMember.prefix + '-value');
+                        opts.childInitializer(sequenceMember.prefix + '-value');
                     }
                 },
                 'onInitializeInitialMember': function(sequenceMember, index) {
                     if (opts.childInitializer) {
-                        opts.childInitializer(childParams[index], sequenceMember.prefix + '-value');
+                        opts.childInitializer(sequenceMember.prefix + '-value');
                     }
                 }
             });

@@ -12,17 +12,17 @@
             listMemberTemplates[childBlock.name] = template;
         }
 
-        function initChild(blockTypeName, childParam, listMemberPrefix) {
+        function initChild(blockTypeName, listMemberPrefix) {
             blockOpts = childBlocksByName[blockTypeName];
 
             /* run childInitializer if one has been supplied */
             if (blockOpts.initializer) {
                 /* the child block's own elements have the prefix '{list member prefix}-value' */
-                blockOpts.initializer(childParam, listMemberPrefix + '-value');
+                blockOpts.initializer(listMemberPrefix + '-value');
             }
         }
 
-        return function(childParams, elementPrefix) {
+        return function(elementPrefix) {
             var sequence = Sequence({
                 'prefix': elementPrefix,
                 'onInitializeMember': function(sequenceMember) {
@@ -44,11 +44,11 @@
                 },
                 'onInitializeInitialMember': function(sequenceMember, index) {
                     var blockTypeName = $('#' + sequenceMember.prefix + '-type').val();
-                    initChild(blockTypeName, childParams[index], sequenceMember.prefix);
+                    initChild(blockTypeName, sequenceMember.prefix);
                 },
                 'onInitializeNewMember': function(sequenceMember) {
                     var blockTypeName = $('#' + sequenceMember.prefix + '-type').val();
-                    initChild(blockTypeName, childBlocksByName[blockTypeName].templateInitializerParam, sequenceMember.prefix);
+                    initChild(blockTypeName,sequenceMember.prefix);
                 }
             });
 

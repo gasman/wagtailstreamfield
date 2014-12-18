@@ -163,6 +163,7 @@ For example, they don't assume the presence of a 'delete' button - it's up to th
         };
 
         /* initialize initial list members */
+        console.log('there are', self.getCount(), 'children of', opts.prefix);
         for (var i = 0; i < self.getCount(); i++) {
             var memberPrefix = opts.prefix + '-' + i;
             var sequenceMember = SequenceMember(self, memberPrefix);

@@ -107,29 +107,13 @@ class Block(object):
         """
         Returns a Javascript expression string, or None if this block does not require any
         Javascript behaviour. This expression evaluates to an initializer function, a function that
-        takes two arguments:
-        1) the value returned by js_initializer_param, identifying relevant
-        characteristics of the block content,
-        2) the ID prefix
-        - and applies JS behaviour to the block instance with that value and prefix.
+        takes the ID prefix and applies JS behaviour to the block instance with that value and prefix.
 
         The parent block of this block (or the top-level page code) must ensure that this
         expression is not evaluated more than once. (The resulting initializer function can and will be
         called as many times as there are instances of this block, though.)
         """
         return None
-
-    def js_initializer_param(self, value):
-        """
-        Given a block value, return a Javascript expression string that incorporates all information
-        about that value that the initializer function needs to know.
-
-        The parent block of this block (or the top-level page code) should avoid evaluating this
-        expression more times than necessary. (Roughly speaking, this means once per block instance
-        for values that originate from page content, and once per block definition for values that
-        are defined in the block definition, e.g. default values.)
-        """
-        return 'null'
 
     def render(self, value, prefix=''):
         """
@@ -167,9 +151,6 @@ class BoundBlock(object):
 
     def render(self):
         return self.block.render(self.value, self.prefix)
-
-    def js_initializer_param(self):
-        return self.block.js_initializer_param(self.value)
 
 
 # ==========
@@ -281,23 +262,6 @@ class BaseStructBlock(Block):
             return None
 
         return "StructBlock(%s)" % js_dict(self.child_js_initializers)
-
-    def js_initializer_param(self, value):
-        # Return value should be a mapping:
-        # {
-        #    'firstChild': js_initializer_param_for_first_child,
-        #    'secondChild': js_initializer_param_for_second_child
-        # }
-        # - for each child that provides a js_initializer.
-
-        child_params = {}
-
-        for child_name in self.child_js_initializers.keys():
-            block = self.child_blocks[child_name]
-            child_value = value.get(child_name, block.default)
-            child_params[child_name] = block.js_initializer_param(child_value)
-
-        return js_dict(child_params)
 
     @property
     def media(self):
@@ -419,20 +383,8 @@ class ListBlock(Block):
 
         if self.child_js_initializer:
             opts['childInitializer'] = self.child_js_initializer
-            opts['templateChildParam'] = self.child_block.prototype_block().js_initializer_param()
 
         return "ListBlock(%s)" % js_dict(opts)
-
-    def js_initializer_param(self, value):
-        if self.child_js_initializer:
-            # Return value is an array of js_initializer_params, one for each child block in the list
-            child_params = [
-                indent(self.child_block.js_initializer_param(child_value))
-                for child_value in value
-            ]
-            return '[\n%s\n]' % ',\n'.join(child_params)
-        else:
-            return '[]'
 
     def render(self, value, prefix=''):
         list_members_html = [
@@ -526,7 +478,6 @@ class BaseStreamBlock(Block):
             child_js_initializer = child_block.js_initializer()
             if child_js_initializer:
                 child_block_info['initializer'] = child_js_initializer
-                child_block_info['templateInitializerParam'] = child_block.prototype_block().js_initializer_param()
 
             child_blocks.append(indent(js_dict(child_block_info)))
 
@@ -536,14 +487,6 @@ class BaseStreamBlock(Block):
         }
 
         return "StreamBlock(%s)" % js_dict(opts)
-
-    def js_initializer_param(self, value):
-        # Return value is an array of js_initializer_params, one for each child block in the list
-        child_params = [
-            indent(self.child_blocks[child['type']].js_initializer_param(child['value']))
-            for child in value
-        ]
-        return '[\n%s\n]' % ',\n'.join(child_params)
 
     def render(self, value, prefix=''):
         list_members_html = [
