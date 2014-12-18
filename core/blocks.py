@@ -1,6 +1,7 @@
 import re
 from collections import OrderedDict
 
+from django.core.exceptions import ValidationError
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
@@ -141,6 +142,15 @@ class Block(object):
         """
         return self.bind(self.default, '__PREFIX__')
 
+    def clean(self, value):
+        """
+        Validate value and return a cleaned version of it, or throw a ValidationError if validation fails.
+        The thrown ValidationError instance will subsequently be passed to render() to display the
+        error message; nested blocks therefore need to wrap child validations like this:
+        https://docs.djangoproject.com/en/dev/ref/forms/validation/#raising-multiple-errors
+        """
+        return value
+
 
 class BoundBlock(object):
     def __init__(self, block, prefix, value):
@@ -200,6 +210,9 @@ class FieldBlock(Block):
 
     def value_from_datadict(self, data, files, prefix):
         return self.field.widget.value_from_datadict(data, files, prefix)
+
+    def clean(self, value):
+        return self.field.clean(value)
 
 # =======
 # Chooser
@@ -289,6 +302,21 @@ class BaseStructBlock(Block):
             (name, block.value_from_datadict(data, files, '%s-%s' % (prefix, name)))
             for name, block in self.child_blocks.items()
         ])
+
+    def clean(self, value):
+        result = {}
+        errors = {}
+        for name, val in value.items():
+            try:
+                result[name] = self.child_blocks[name].clean(val)
+            except ValidationError as e:
+                errors[name] = e
+
+        if errors:
+            raise ValidationError(errors)
+
+        return result
+
 
 class DeclarativeSubBlocksMetaclass(type):
     """
@@ -413,6 +441,22 @@ class ListBlock(Block):
         values_with_indexes.sort()
         return [v for (i, v) in values_with_indexes]
 
+    def clean(self, value):
+        result = []
+        errors = []
+        for child_val in value:
+            try:
+                result.append(self.child_block.clean(child_val))
+            except ValidationError as e:
+                errors.append(e)
+            else:
+                errors.append(None)
+
+        if any(errors):
+            raise ValidationError(errors)
+
+        return result
+
 
 # ===========
 # StreamBlock
@@ -520,6 +564,26 @@ class BaseStreamBlock(Block):
 
         values_with_indexes.sort()
         return [{'type': t, 'value': v} for (i, t, v) in values_with_indexes]
+
+    def clean(self, value):
+        result = []
+        errors = []
+        for child_val in value:
+            child_block = self.child_blocks[child_val['type']]
+            try:
+                result.append({
+                    'type': child_val['type'],
+                    'value': child_block.clean(child_val['value']),
+                })
+            except ValidationError as e:
+                errors.append(e)
+            else:
+                errors.append(None)
+
+        if any(errors):
+            raise ValidationError(errors)
+
+        return result
 
 class StreamBlock(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStreamBlock)):
     pass

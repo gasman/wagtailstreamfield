@@ -5,7 +5,7 @@ from django.http import HttpResponse
 from core.blocks import TextInputBlock, ChooserBlock, StructBlock, ListBlock, StreamBlock, FieldBlock
 
 class SpeakerBlock(StructBlock):
-    name = TextInputBlock(label='Full name')
+    name = FieldBlock(forms.CharField(), label='Full name')
     job_title = TextInputBlock(default="just this guy, y'know?")
     nicknames = ListBlock(TextInputBlock())
     image = ChooserBlock()
@@ -42,8 +42,9 @@ def home(request):
     }
 
     if request.method == 'POST':
-        return HttpResponse(
-            repr(PAGE_DEF.value_from_datadict(request.POST, request.FILES, 'page')), mimetype="text/plain")
+        value = PAGE_DEF.value_from_datadict(request.POST, request.FILES, 'page')
+        clean_value = PAGE_DEF.clean(value)
+        return HttpResponse(repr(clean_value), mimetype="text/plain")
     else:
 
         page = PAGE_DEF.bind(page_data, prefix='page')
