@@ -446,7 +446,7 @@ class ListBlock(Block):
         values_with_indexes = []
         for i in range(0, count):
             if data['%s-%d-deleted' % (prefix, i)]:
-                pass
+                continue
             values_with_indexes.append(
                 (
                     data['%s-%d-order' % (prefix, i)],
@@ -569,7 +569,7 @@ class BaseStreamBlock(Block):
         values_with_indexes = []
         for i in range(0, count):
             if data['%s-%d-deleted' % (prefix, i)]:
-                pass
+                continue
             block_type_name = data['%s-%d-type' % (prefix, i)]
             child_block = self.child_blocks[block_type_name]
 
