@@ -22,7 +22,7 @@ pageInitializer('page');
     <body>
         <form action="." method="POST">
             {% csrf_token %}
-            {{ page.render }}
+            {{ page.render_form }}
             <input type="submit">
         </form>
     </body>

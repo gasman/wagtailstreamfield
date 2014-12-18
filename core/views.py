@@ -27,21 +27,21 @@ PAGE_DEF = StructBlock([
     ])),
 ])
 
-def home(request):
-    page_data = {
-        'title': 'My lovely event',
-        'speakers': [
-            {'name': 'Tim Berners-Lee', 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
-            {'name': 'Bono', 'job_title': 'Singer'},
-        ],
-        'content': [
-            {'type': 'heading', 'value': "The largest event for the things that the event is about!"},
-            {'type': 'image', 'value': 42},
-            {'type': 'heading', 'value': "Earlyish Bird tickets available now"},
-            {'type': 'image', 'value': 99},
-        ],
-    }
+PAGE_DATA = {
+    'title': 'My lovely event',
+    'speakers': [
+        {'name': 'Tim Berners-Lee', 'job_title': 'Web developer', 'nicknames': ['Timmy', 'Bernie']},
+        {'name': 'Bono', 'job_title': 'Singer'},
+    ],
+    'content': [
+        {'type': 'heading', 'value': "The largest event for the things that the event is about!"},
+        {'type': 'image', 'value': 42},
+        {'type': 'heading', 'value': "Earlyish Bird tickets available now"},
+        {'type': 'image', 'value': 99},
+    ],
+}
 
+def edit(request):
     if request.method == 'POST':
         value = PAGE_DEF.value_from_datadict(request.POST, request.FILES, 'page')
         try:
@@ -59,9 +59,9 @@ def home(request):
             return HttpResponse(repr(clean_value), content_type="text/plain")
     else:
 
-        page = PAGE_DEF.bind(page_data, prefix='page')
+        page = PAGE_DEF.bind(PAGE_DATA, prefix='page')
 
-        return render(request, 'core/home.html', {
+        return render(request, 'core/edit.html', {
             'media': PAGE_DEF.all_media(),
             'html_declarations': PAGE_DEF.all_html_declarations(),
             'initializer': PAGE_DEF.js_initializer(),

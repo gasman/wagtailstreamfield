@@ -90,7 +90,7 @@ class Block(object):
 
     def html_declarations(self):
         """
-        Return an HTML fragment to be rendered on the page once per block definition -
+        Return an HTML fragment to be rendered on the form page once per block definition -
         as opposed to once per occurrence of the block. For example, the block definition
             ListBlock(label="Shopping list", TextInput(label="Product"))
         needs to output a <script type="text/template"></script> block containing the HTML for
@@ -116,11 +116,11 @@ class Block(object):
         """
         return None
 
-    def render(self, value, prefix=''):
+    def render_form(self, value, prefix=''):
         """
         Render the HTML for this block with 'value' as its content.
         """
-        raise NotImplementedError('%s.render' % self.__class__)
+        raise NotImplementedError('%s.render_form' % self.__class__)
 
     def value_from_datadict(self, data, files, prefix):
         raise NotImplementedError('%s.value_from_datadict' % self.__class__)
@@ -164,8 +164,8 @@ class BoundBlock(object):
         self.value = value
         self.error = error
 
-    def render(self):
-        return self.block.render(self.value, self.prefix, error=self.error)
+    def render_form(self):
+        return self.block.render_form(self.value, self.prefix, error=self.error)
 
 
 # ==========
@@ -175,7 +175,7 @@ class BoundBlock(object):
 class TextInputBlock(Block):
     default = ''
 
-    def render(self, value, prefix='', error=None):
+    def render_form(self, value, prefix='', error=None):
         if self.label:
             return format_html(
                 """<label for="{prefix}">{label}</label> <input type="text" name="{prefix}" id="{prefix}" value="{value}">""",
@@ -202,7 +202,7 @@ class FieldBlock(Block):
         super(FieldBlock, self).__init__(**kwargs)
         self.field = field
 
-    def render(self, value, prefix='', error=None):
+    def render_form(self, value, prefix='', error=None):
         widget = self.field.widget
 
         widget_html = widget.render(prefix, value, {'id': prefix})
@@ -242,7 +242,7 @@ class ChooserBlock(Block):
     def js_initializer(self):
         return "Chooser('%s')" % self.definition_prefix
 
-    def render(self, value, prefix='', error=None):
+    def render_form(self, value, prefix='', error=None):
         if self.label:
             return format_html(
                 """<label>{label}</label> <input type="button" id="{prefix}-button" value="Choose a thing">""",
@@ -293,9 +293,9 @@ class BaseStructBlock(Block):
     def media(self):
         return Media(js=['js/blocks/struct.js'])
 
-    def render(self, value, prefix='', error=None):
+    def render_form(self, value, prefix='', error=None):
         child_renderings = [
-            block.render(value.get(name, block.default), prefix="%s-%s" % (prefix, name),
+            block.render_form(value.get(name, block.default), prefix="%s-%s" % (prefix, name),
                 error=error.params.get(name) if error else None)
             for name, block in self.child_blocks.items()
         ]
@@ -398,8 +398,8 @@ class ListBlock(Block):
 
     def render_list_member(self, value, prefix, index, error=None):
         """
-        Render the HTML for a single list item. This consists of an <li> wrapper, hidden fields
-        to manage ID/deleted state, delete/reorder buttons, and the child block's own HTML.
+        Render the HTML for a single list item in the form. This consists of an <li> wrapper, hidden fields
+        to manage ID/deleted state, delete/reorder buttons, and the child block's own form HTML.
         """
         child = self.child_block.bind(value, prefix="%s-value" % prefix, error=error)
         return render_to_string('core/blocks/list_member.html', {
@@ -428,7 +428,7 @@ class ListBlock(Block):
 
         return "ListBlock(%s)" % js_dict(opts)
 
-    def render(self, value, prefix='', error=None):
+    def render_form(self, value, prefix='', error=None):
         list_members_html = [
             self.render_list_member(child_val, "%s-%d" % (prefix, i), i,
                 error=error.params[i] if error else None)
@@ -549,7 +549,7 @@ class BaseStreamBlock(Block):
 
         return "StreamBlock(%s)" % js_dict(opts)
 
-    def render(self, value, prefix='', error=None):
+    def render_form(self, value, prefix='', error=None):
         list_members_html = [
             self.render_list_member(member['type'], member['value'], "%s-%d" % (prefix, i), i,
                 error=error.params[i] if error else None)
