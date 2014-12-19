@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
+from django.utils.encoding import python_2_unicode_compatible
 from django.template.loader import render_to_string
 from django.forms import Media
 from django.forms.utils import ErrorList
@@ -274,6 +275,7 @@ class ChooserBlock(Block):
 
 class BaseStructBlock(Block):
     default = {}
+    template = "core/blocks/struct.html"
 
     def __init__(self, local_blocks=None, **kwargs):
         super(BaseStructBlock, self).__init__(**kwargs)
@@ -343,10 +345,19 @@ class BaseStructBlock(Block):
         return result
 
     def renderable(self, value):
-        return dict([
+        return RenderableStructBlock(self, [
             (name, self.child_blocks[name].renderable(val))
             for name, val in value.items()
         ])
+
+@python_2_unicode_compatible  # ensures that the output of __str__ doesn't lose its 'safe' flag
+class RenderableStructBlock(dict):
+    def __init__(self, block, *args):
+        super(RenderableStructBlock, self).__init__(*args)
+        self.block = block
+
+    def __str__(self):
+        return render_to_string(self.block.template, {'self': self})
 
 
 class DeclarativeSubBlocksMetaclass(type):

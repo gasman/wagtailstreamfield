@@ -11,6 +11,9 @@ class SpeakerBlock(StructBlock):
     nicknames = ListBlock(TextInputBlock())
     image = ChooserBlock()
 
+    # FIXME: this would be neater in a Meta class
+    template = 'demo/speaker.html'
+
 class ContentBlock(StreamBlock):
     heading = TextInputBlock()
     image = ChooserBlock(label='Image')
