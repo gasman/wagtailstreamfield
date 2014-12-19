@@ -402,7 +402,7 @@ class ListBlock(Block):
         to manage ID/deleted state, delete/reorder buttons, and the child block's own form HTML.
         """
         child = self.child_block.bind(value, prefix="%s-value" % prefix, error=error)
-        return render_to_string('core/blocks/list_member.html', {
+        return render_to_string('core/block_forms/list_member.html', {
             'prefix': prefix,
             'child': child,
             'index': index,
@@ -435,7 +435,7 @@ class ListBlock(Block):
             for (i, child_val) in enumerate(value)
         ]
 
-        return render_to_string('core/blocks/list.html', {
+        return render_to_string('core/block_forms/list.html', {
             'label': self.label,
             'prefix': prefix,
             'list_members_html': list_members_html,
@@ -501,7 +501,7 @@ class BaseStreamBlock(Block):
         """
         child_block = self.child_blocks[block_type_name]
         child = child_block.bind(value, prefix="%s-value" % prefix, error=error)
-        return render_to_string('core/blocks/stream_member.html', {
+        return render_to_string('core/block_forms/stream_member.html', {
             'child_blocks': self.child_blocks.values(),
             'block_type_name': block_type_name,
             'prefix': prefix,
@@ -556,7 +556,7 @@ class BaseStreamBlock(Block):
             for (i, member) in enumerate(value)
         ]
 
-        return render_to_string('core/blocks/stream.html', {
+        return render_to_string('core/block_forms/stream.html', {
             'label': self.label,
             'prefix': prefix,
             'list_members_html': list_members_html,
