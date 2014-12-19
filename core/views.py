@@ -41,6 +41,10 @@ PAGE_DATA = {
     ],
 }
 
+def show(request):
+    page = PAGE_DEF.renderable(PAGE_DATA)
+    return render(request, 'core/show.html', {'self': page})
+
 def edit(request):
     if request.method == 'POST':
         value = PAGE_DEF.value_from_datadict(request.POST, request.FILES, 'page')

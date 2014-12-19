@@ -156,6 +156,16 @@ class Block(object):
         """
         return value
 
+    def renderable(self, value):
+        """
+        Return 'value' in the most convenient version for use in templates. In simple cases this might
+        be the value itself; alternatively, it might be a 'smart' version of the value which behaves mostly
+        like the original value but provides a native HTML rendering when inserted into a template; or it
+        might be something totally different (e.g. an image chooser will use the image ID as the clean value,
+        and turn this back into an actual image object here).
+        """
+        return value
+
 
 class BoundBlock(object):
     def __init__(self, block, prefix, value, error=None):
@@ -332,6 +342,12 @@ class BaseStructBlock(Block):
 
         return result
 
+    def renderable(self, value):
+        return dict([
+            (name, self.child_blocks[name].renderable(val))
+            for name, val in value.items()
+        ])
+
 
 class DeclarativeSubBlocksMetaclass(type):
     """
@@ -475,6 +491,12 @@ class ListBlock(Block):
 
         return result
 
+    def renderable(self, value):
+        return [
+            self.child_block.renderable(item)
+            for item in value
+        ]
+
 
 # ===========
 # StreamBlock
@@ -605,6 +627,12 @@ class BaseStreamBlock(Block):
             raise ValidationError('Validation error in StreamBlock', params=errors)
 
         return result
+
+    def renderable(self, value):
+        return [
+            self.child_blocks[item['type']].renderable(item['value'])
+            for item in value
+        ]
 
 class StreamBlock(six.with_metaclass(DeclarativeSubBlocksMetaclass, BaseStreamBlock)):
     pass
